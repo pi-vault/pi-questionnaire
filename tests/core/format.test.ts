@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type {
-  ChoiceAnswer,
   MultiChoiceAnswer,
   NormalizedQuestion,
   QuestionnaireResult,
+  SingleChoiceAnswer,
   TextAnswer,
 } from "../../src/core/types.ts";
 import {
@@ -47,7 +47,7 @@ const textQ: NormalizedQuestion = {
 
 describe("formatModelLine", () => {
   it("formats choice answer", () => {
-    const answer: ChoiceAnswer = {
+    const answer: SingleChoiceAnswer = {
       type: "single-choice",
       questionId: "scope",
       value: "small",
@@ -123,7 +123,7 @@ describe("formatContentSummary", () => {
 
 describe("formatAnswerForRender", () => {
   it("formats choice for display", () => {
-    const answer: ChoiceAnswer = {
+    const answer: SingleChoiceAnswer = {
       type: "single-choice",
       questionId: "scope",
       value: "small",

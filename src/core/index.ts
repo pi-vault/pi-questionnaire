@@ -1,16 +1,16 @@
 export { QuestionnaireParamsSchema } from "./schema.ts";
 export type {
-  ChoiceAnswer,
   MultiChoiceAnswer,
   NormalizedAnswer,
-  NormalizedChoiceQuestion,
   NormalizedMultiChoiceQuestion,
   NormalizedQuestion,
+  NormalizedSingleChoiceQuestion,
   NormalizedTextQuestion,
   QuestionInput,
   QuestionnaireResult,
   QuestionOption,
   SelectedOption,
+  SingleChoiceAnswer,
   TextAnswer,
 } from "./types.ts";
 export { validateQuestions } from "./validate.ts";

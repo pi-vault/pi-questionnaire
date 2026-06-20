@@ -1,7 +1,7 @@
 import type {
-  NormalizedChoiceQuestion,
   NormalizedMultiChoiceQuestion,
   NormalizedQuestion,
+  NormalizedSingleChoiceQuestion,
   NormalizedTextQuestion,
   QuestionInput,
   QuestionOption,
@@ -15,9 +15,9 @@ function normalizeOptions(options: QuestionOption[]): QuestionOption[] {
   }));
 }
 
-function normalizeChoice(
+function normalizeSingleChoice(
   q: QuestionInput & { type: "single-choice" },
-): NormalizedChoiceQuestion {
+): NormalizedSingleChoiceQuestion {
   return {
     type: "single-choice",
     id: q.id.trim(),
@@ -57,7 +57,7 @@ export function normalizeQuestions(
   questions: QuestionInput[],
 ): NormalizedQuestion[] {
   return questions.map((q) => {
-    if (q.type === "single-choice") return normalizeChoice(q);
+    if (q.type === "single-choice") return normalizeSingleChoice(q);
     if (q.type === "multi-choice") return normalizeMultiChoice(q);
     return normalizeText(q);
   });

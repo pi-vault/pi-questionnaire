@@ -35,7 +35,7 @@ export type QuestionInput =
   | MultiChoiceQuestionInput
   | TextQuestionInput;
 
-export interface NormalizedChoiceQuestion {
+export interface NormalizedSingleChoiceQuestion {
   type: "single-choice";
   id: string;
   header: string;
@@ -62,7 +62,7 @@ export interface NormalizedTextQuestion {
 }
 
 export type NormalizedQuestion =
-  | NormalizedChoiceQuestion
+  | NormalizedSingleChoiceQuestion
   | NormalizedMultiChoiceQuestion
   | NormalizedTextQuestion;
 
@@ -71,7 +71,7 @@ export interface SelectedOption {
   label: string;
 }
 
-export interface ChoiceAnswer {
+export interface SingleChoiceAnswer {
   type: "single-choice";
   questionId: string;
   value: string;
@@ -90,7 +90,7 @@ export interface TextAnswer {
   value: string;
 }
 
-export type NormalizedAnswer = ChoiceAnswer | MultiChoiceAnswer | TextAnswer;
+export type NormalizedAnswer = SingleChoiceAnswer | MultiChoiceAnswer | TextAnswer;
 
 export interface QuestionnaireResult {
   questions: NormalizedQuestion[];
