@@ -11,6 +11,7 @@ This phase builds all business logic. After this phase the core is fully testabl
 ## Task 1: Types
 
 **Files:**
+
 - Create: `src/core/types.ts`
 
 - [ ] **Step 1: Write `src/core/types.ts`**
@@ -22,8 +23,8 @@ export interface QuestionOption {
   description?: string;
 }
 
-export interface ChoiceQuestionInput {
-  type: "choice";
+export interface SingleChoiceQuestionInput {
+  type: "single-choice";
   id: string;
   header: string;
   prompt: string;
@@ -48,10 +49,13 @@ export interface TextQuestionInput {
   recommendation?: string;
 }
 
-export type QuestionInput = ChoiceQuestionInput | MultiChoiceQuestionInput | TextQuestionInput;
+export type QuestionInput =
+  | SingleChoiceQuestionInput
+  | MultiChoiceQuestionInput
+  | TextQuestionInput;
 
-export interface NormalizedChoiceQuestion {
-  type: "choice";
+export interface NormalizedSingleChoiceQuestion {
+  type: "single-choice";
   id: string;
   header: string;
   prompt: string;
@@ -77,7 +81,7 @@ export interface NormalizedTextQuestion {
 }
 
 export type NormalizedQuestion =
-  | NormalizedChoiceQuestion
+  | NormalizedSingleChoiceQuestion
   | NormalizedMultiChoiceQuestion
   | NormalizedTextQuestion;
 
@@ -86,8 +90,8 @@ export interface SelectedOption {
   label: string;
 }
 
-export interface ChoiceAnswer {
-  type: "choice";
+export interface SingleChoiceAnswer {
+  type: "single-choice";
   questionId: string;
   value: string;
   label: string;
@@ -105,7 +109,10 @@ export interface TextAnswer {
   value: string;
 }
 
-export type NormalizedAnswer = ChoiceAnswer | MultiChoiceAnswer | TextAnswer;
+export type NormalizedAnswer =
+  | SingleChoiceAnswer
+  | MultiChoiceAnswer
+  | TextAnswer;
 
 export interface QuestionnaireResult {
   questions: NormalizedQuestion[];
@@ -132,6 +139,7 @@ git commit -m "feat: add core type definitions for questionnaire"
 ## Task 2: Schema
 
 **Files:**
+
 - Create: `src/core/schema.ts`
 
 - [ ] **Step 1: Write `src/core/schema.ts`**
@@ -140,15 +148,21 @@ git commit -m "feat: add core type definitions for questionnaire"
 import { Type } from "typebox";
 
 const QuestionOptionSchema = Type.Object({
-  value: Type.String({ description: "Stable value returned when this option is selected" }),
+  value: Type.String({
+    description: "Stable value returned when this option is selected",
+  }),
   label: Type.String({ description: "User-facing label for this option" }),
-  description: Type.Optional(Type.String({ description: "Optional helper text shown below the label" })),
+  description: Type.Optional(
+    Type.String({ description: "Optional helper text shown below the label" }),
+  ),
 });
 
-const ChoiceQuestionSchema = Type.Object({
-  type: Type.Literal("choice"),
+const SingleChoiceQuestionSchema = Type.Object({
+  type: Type.Literal("single-choice"),
   id: Type.String({ description: "Unique question identifier" }),
-  header: Type.String({ description: "Short label shown in tabs and summaries" }),
+  header: Type.String({
+    description: "Short label shown in tabs and summaries",
+  }),
   prompt: Type.String({ description: "Full question text shown to the user" }),
   options: Type.Array(QuestionOptionSchema, {
     minItems: 2,
@@ -163,7 +177,9 @@ const ChoiceQuestionSchema = Type.Object({
 const MultiChoiceQuestionSchema = Type.Object({
   type: Type.Literal("multi-choice"),
   id: Type.String({ description: "Unique question identifier" }),
-  header: Type.String({ description: "Short label shown in tabs and summaries" }),
+  header: Type.String({
+    description: "Short label shown in tabs and summaries",
+  }),
   prompt: Type.String({ description: "Full question text shown to the user" }),
   options: Type.Array(QuestionOptionSchema, {
     minItems: 2,
@@ -178,14 +194,20 @@ const MultiChoiceQuestionSchema = Type.Object({
 const TextQuestionSchema = Type.Object({
   type: Type.Literal("text"),
   id: Type.String({ description: "Unique question identifier" }),
-  header: Type.String({ description: "Short label shown in tabs and summaries" }),
+  header: Type.String({
+    description: "Short label shown in tabs and summaries",
+  }),
   prompt: Type.String({ description: "Full question text shown to the user" }),
   recommendation: Type.Optional(
     Type.String({ description: "Prefilled editor value" }),
   ),
 });
 
-const QuestionSchema = Type.Union([ChoiceQuestionSchema, MultiChoiceQuestionSchema, TextQuestionSchema]);
+const QuestionSchema = Type.Union([
+  SingleChoiceQuestionSchema,
+  MultiChoiceQuestionSchema,
+  TextQuestionSchema,
+]);
 
 export const QuestionnaireParamsSchema = Type.Object({
   questions: Type.Array(QuestionSchema, {
@@ -213,6 +235,7 @@ git commit -m "feat: add TypeBox parameter schemas for questionnaire tool"
 ## Task 3: Validation
 
 **Files:**
+
 - Create: `src/core/validate.ts`
 - Create: `tests/core/validate.test.ts`
 
@@ -223,9 +246,11 @@ import { describe, expect, it } from "vitest";
 import type { QuestionInput } from "../../src/core/types.ts";
 import { validateQuestions } from "../../src/core/validate.ts";
 
-function choiceQ(overrides: Partial<QuestionInput & { type: "choice" }> = {}): QuestionInput {
+function choiceQ(
+  overrides: Partial<QuestionInput & { type: "single-choice" }> = {},
+): QuestionInput {
   return {
-    type: "choice",
+    type: "single-choice",
     id: "q1",
     header: "Q1",
     prompt: "Pick one",
@@ -237,7 +262,9 @@ function choiceQ(overrides: Partial<QuestionInput & { type: "choice" }> = {}): Q
   };
 }
 
-function multiQ(overrides: Partial<QuestionInput & { type: "multi-choice" }> = {}): QuestionInput {
+function multiQ(
+  overrides: Partial<QuestionInput & { type: "multi-choice" }> = {},
+): QuestionInput {
   return {
     type: "multi-choice",
     id: "q1",
@@ -251,7 +278,9 @@ function multiQ(overrides: Partial<QuestionInput & { type: "multi-choice" }> = {
   };
 }
 
-function textQ(overrides: Partial<QuestionInput & { type: "text" }> = {}): QuestionInput {
+function textQ(
+  overrides: Partial<QuestionInput & { type: "text" }> = {},
+): QuestionInput {
   return {
     type: "text",
     id: "q1",
@@ -279,44 +308,76 @@ describe("validateQuestions", () => {
 
   it("rejects empty questions array", () => {
     const result = validateQuestions([]);
-    expect(result).toEqual({ valid: false, error: "Questionnaire must include at least 1 question." });
+    expect(result).toEqual({
+      valid: false,
+      error: "Questionnaire must include at least 1 question.",
+    });
   });
 
   it("rejects more than 10 questions", () => {
     const qs = Array.from({ length: 11 }, (_, i) => choiceQ({ id: `q${i}` }));
     const result = validateQuestions(qs);
-    expect(result).toEqual({ valid: false, error: "Questionnaire supports at most 10 questions." });
+    expect(result).toEqual({
+      valid: false,
+      error: "Questionnaire supports at most 10 questions.",
+    });
   });
 
   it("rejects duplicate question ids", () => {
-    const result = validateQuestions([choiceQ({ id: "dup" }), textQ({ id: "dup" })]);
-    expect(result).toEqual({ valid: false, error: 'Duplicate question id: "dup".' });
+    const result = validateQuestions([
+      choiceQ({ id: "dup" }),
+      textQ({ id: "dup" }),
+    ]);
+    expect(result).toEqual({
+      valid: false,
+      error: 'Duplicate question id: "dup".',
+    });
   });
 
   it("rejects empty question id", () => {
     const result = validateQuestions([choiceQ({ id: "  " })]);
-    expect(result).toEqual({ valid: false, error: "Question 1 has an empty id." });
+    expect(result).toEqual({
+      valid: false,
+      error: "Question 1 has an empty id.",
+    });
   });
 
   it("rejects empty question header", () => {
     const result = validateQuestions([choiceQ({ header: "" })]);
-    expect(result).toEqual({ valid: false, error: 'Question "q1" has an empty header.' });
+    expect(result).toEqual({
+      valid: false,
+      error: 'Question "q1" has an empty header.',
+    });
   });
 
   it("rejects empty question prompt", () => {
     const result = validateQuestions([choiceQ({ prompt: "  " })]);
-    expect(result).toEqual({ valid: false, error: 'Question "q1" has an empty prompt.' });
+    expect(result).toEqual({
+      valid: false,
+      error: 'Question "q1" has an empty prompt.',
+    });
   });
 
   it("rejects choice with fewer than 2 options", () => {
-    const result = validateQuestions([choiceQ({ options: [{ value: "a", label: "A" }] })]);
-    expect(result).toEqual({ valid: false, error: 'Question "q1" must have 2-12 options.' });
+    const result = validateQuestions([
+      choiceQ({ options: [{ value: "a", label: "A" }] }),
+    ]);
+    expect(result).toEqual({
+      valid: false,
+      error: 'Question "q1" must have 2-12 options.',
+    });
   });
 
   it("rejects choice with more than 12 options", () => {
-    const options = Array.from({ length: 13 }, (_, i) => ({ value: `v${i}`, label: `L${i}` }));
+    const options = Array.from({ length: 13 }, (_, i) => ({
+      value: `v${i}`,
+      label: `L${i}`,
+    }));
     const result = validateQuestions([choiceQ({ options })]);
-    expect(result).toEqual({ valid: false, error: 'Question "q1" must have 2-12 options.' });
+    expect(result).toEqual({
+      valid: false,
+      error: 'Question "q1" must have 2-12 options.',
+    });
   });
 
   it("rejects duplicate option values", () => {
@@ -343,7 +404,10 @@ describe("validateQuestions", () => {
         ],
       }),
     ]);
-    expect(result).toEqual({ valid: false, error: 'Question "q1" has an option with an empty value.' });
+    expect(result).toEqual({
+      valid: false,
+      error: 'Question "q1" has an option with an empty value.',
+    });
   });
 
   it("rejects empty option label", () => {
@@ -355,14 +419,18 @@ describe("validateQuestions", () => {
         ],
       }),
     ]);
-    expect(result).toEqual({ valid: false, error: 'Question "q1" has an option with an empty label.' });
+    expect(result).toEqual({
+      valid: false,
+      error: 'Question "q1" has an option with an empty label.',
+    });
   });
 
   it("rejects choice recommendation not matching any option", () => {
     const result = validateQuestions([choiceQ({ recommendation: "nope" })]);
     expect(result).toEqual({
       valid: false,
-      error: 'Question "q1" recommendation "nope" does not match any option value.',
+      error:
+        'Question "q1" recommendation "nope" does not match any option value.',
     });
   });
 
@@ -372,10 +440,13 @@ describe("validateQuestions", () => {
   });
 
   it("rejects multi-choice recommendation not matching any option", () => {
-    const result = validateQuestions([multiQ({ recommendation: ["a", "nope"] })]);
+    const result = validateQuestions([
+      multiQ({ recommendation: ["a", "nope"] }),
+    ]);
     expect(result).toEqual({
       valid: false,
-      error: 'Question "q1" recommendation "nope" does not match any option value.',
+      error:
+        'Question "q1" recommendation "nope" does not match any option value.',
     });
   });
 
@@ -398,12 +469,20 @@ import type { QuestionInput } from "./types.ts";
 
 type ValidationResult = { valid: true } | { valid: false; error: string };
 
-export function validateQuestions(questions: QuestionInput[]): ValidationResult {
+export function validateQuestions(
+  questions: QuestionInput[],
+): ValidationResult {
   if (questions.length === 0) {
-    return { valid: false, error: "Questionnaire must include at least 1 question." };
+    return {
+      valid: false,
+      error: "Questionnaire must include at least 1 question.",
+    };
   }
   if (questions.length > 10) {
-    return { valid: false, error: "Questionnaire supports at most 10 questions." };
+    return {
+      valid: false,
+      error: "Questionnaire supports at most 10 questions.",
+    };
   }
 
   const idSet = new Set<string>();
@@ -414,7 +493,10 @@ export function validateQuestions(questions: QuestionInput[]): ValidationResult 
     const questionNumber = i + 1;
 
     if (!trimmedId) {
-      return { valid: false, error: `Question ${questionNumber} has an empty id.` };
+      return {
+        valid: false,
+        error: `Question ${questionNumber} has an empty id.`,
+      };
     }
     if (idSet.has(trimmedId)) {
       return { valid: false, error: `Duplicate question id: "${trimmedId}".` };
@@ -422,25 +504,40 @@ export function validateQuestions(questions: QuestionInput[]): ValidationResult 
     idSet.add(trimmedId);
 
     if (!q.header.trim()) {
-      return { valid: false, error: `Question "${trimmedId}" has an empty header.` };
+      return {
+        valid: false,
+        error: `Question "${trimmedId}" has an empty header.`,
+      };
     }
     if (!q.prompt.trim()) {
-      return { valid: false, error: `Question "${trimmedId}" has an empty prompt.` };
+      return {
+        valid: false,
+        error: `Question "${trimmedId}" has an empty prompt.`,
+      };
     }
 
-    if (q.type === "choice" || q.type === "multi-choice") {
+    if (q.type === "single-choice" || q.type === "multi-choice") {
       if (q.options.length < 2 || q.options.length > 12) {
-        return { valid: false, error: `Question "${trimmedId}" must have 2-12 options.` };
+        return {
+          valid: false,
+          error: `Question "${trimmedId}" must have 2-12 options.`,
+        };
       }
 
       const valueSet = new Set<string>();
       for (const opt of q.options) {
         const trimmedValue = opt.value.trim();
         if (!trimmedValue) {
-          return { valid: false, error: `Question "${trimmedId}" has an option with an empty value.` };
+          return {
+            valid: false,
+            error: `Question "${trimmedId}" has an option with an empty value.`,
+          };
         }
         if (!opt.label.trim()) {
-          return { valid: false, error: `Question "${trimmedId}" has an option with an empty label.` };
+          return {
+            valid: false,
+            error: `Question "${trimmedId}" has an option with an empty label.`,
+          };
         }
         if (valueSet.has(trimmedValue)) {
           return {
@@ -453,7 +550,7 @@ export function validateQuestions(questions: QuestionInput[]): ValidationResult 
 
       const optionValues = new Set(q.options.map((o) => o.value.trim()));
 
-      if (q.type === "choice" && q.recommendation !== undefined) {
+      if (q.type === "single-choice" && q.recommendation !== undefined) {
         if (!optionValues.has(q.recommendation.trim())) {
           return {
             valid: false,
@@ -496,6 +593,7 @@ git commit -m "feat: add strict validation for questionnaire params"
 ## Task 4: Normalization
 
 **Files:**
+
 - Create: `src/core/normalize.ts`
 - Create: `tests/core/normalize.test.ts`
 
@@ -510,7 +608,7 @@ describe("normalizeQuestions", () => {
   it("trims id, header, prompt on choice questions", () => {
     const input: QuestionInput[] = [
       {
-        type: "choice",
+        type: "single-choice",
         id: "  scope  ",
         header: "  Scope  ",
         prompt: "  Pick one  ",
@@ -524,7 +622,7 @@ describe("normalizeQuestions", () => {
     expect(result[0].id).toBe("scope");
     expect(result[0].header).toBe("Scope");
     expect(result[0].prompt).toBe("Pick one");
-    if (result[0].type === "choice") {
+    if (result[0].type === "single-choice") {
       expect(result[0].options[0].value).toBe("a");
       expect(result[0].options[0].label).toBe("A");
       expect(result[0].options[0].description).toBe("desc");
@@ -534,7 +632,7 @@ describe("normalizeQuestions", () => {
   it("sets recommendation to null when not provided on choice", () => {
     const input: QuestionInput[] = [
       {
-        type: "choice",
+        type: "single-choice",
         id: "q1",
         header: "Q1",
         prompt: "Pick",
@@ -545,7 +643,7 @@ describe("normalizeQuestions", () => {
       },
     ];
     const result = normalizeQuestions(input);
-    if (result[0].type === "choice") {
+    if (result[0].type === "single-choice") {
       expect(result[0].recommendation).toBeNull();
     }
   });
@@ -553,7 +651,7 @@ describe("normalizeQuestions", () => {
   it("preserves recommendation value on choice when provided", () => {
     const input: QuestionInput[] = [
       {
-        type: "choice",
+        type: "single-choice",
         id: "q1",
         header: "Q1",
         prompt: "Pick",
@@ -565,7 +663,7 @@ describe("normalizeQuestions", () => {
       },
     ];
     const result = normalizeQuestions(input);
-    if (result[0].type === "choice") {
+    if (result[0].type === "single-choice") {
       expect(result[0].recommendation).toBe("a");
     }
   });
@@ -618,7 +716,7 @@ describe("normalizeQuestions", () => {
   it("strips undefined descriptions from options", () => {
     const input: QuestionInput[] = [
       {
-        type: "choice",
+        type: "single-choice",
         id: "q1",
         header: "Q1",
         prompt: "Pick",
@@ -629,7 +727,7 @@ describe("normalizeQuestions", () => {
       },
     ];
     const result = normalizeQuestions(input);
-    if (result[0].type === "choice") {
+    if (result[0].type === "single-choice") {
       expect(result[0].options[0].description).toBeUndefined();
     }
   });
@@ -645,7 +743,7 @@ Expected: FAIL (module not found)
 
 ```ts
 import type {
-  NormalizedChoiceQuestion,
+  NormalizedSingleChoiceQuestion,
   NormalizedMultiChoiceQuestion,
   NormalizedQuestion,
   NormalizedTextQuestion,
@@ -661,9 +759,11 @@ function normalizeOptions(options: QuestionOption[]): QuestionOption[] {
   }));
 }
 
-function normalizeChoice(q: QuestionInput & { type: "choice" }): NormalizedChoiceQuestion {
+function normalizeSingleChoice(
+  q: QuestionInput & { type: "single-choice" },
+): NormalizedSingleChoiceQuestion {
   return {
-    type: "choice",
+    type: "single-choice",
     id: q.id.trim(),
     header: q.header.trim(),
     prompt: q.prompt.trim(),
@@ -672,7 +772,9 @@ function normalizeChoice(q: QuestionInput & { type: "choice" }): NormalizedChoic
   };
 }
 
-function normalizeMultiChoice(q: QuestionInput & { type: "multi-choice" }): NormalizedMultiChoiceQuestion {
+function normalizeMultiChoice(
+  q: QuestionInput & { type: "multi-choice" },
+): NormalizedMultiChoiceQuestion {
   return {
     type: "multi-choice",
     id: q.id.trim(),
@@ -683,7 +785,9 @@ function normalizeMultiChoice(q: QuestionInput & { type: "multi-choice" }): Norm
   };
 }
 
-function normalizeText(q: QuestionInput & { type: "text" }): NormalizedTextQuestion {
+function normalizeText(
+  q: QuestionInput & { type: "text" },
+): NormalizedTextQuestion {
   return {
     type: "text",
     id: q.id.trim(),
@@ -693,11 +797,13 @@ function normalizeText(q: QuestionInput & { type: "text" }): NormalizedTextQuest
   };
 }
 
-export function normalizeQuestions(questions: QuestionInput[]): NormalizedQuestion[] {
+export function normalizeQuestions(
+  questions: QuestionInput[],
+): NormalizedQuestion[] {
   return questions.map((q) => {
     switch (q.type) {
-      case "choice":
-        return normalizeChoice(q);
+      case "single-choice":
+        return normalizeSingleChoice(q);
       case "multi-choice":
         return normalizeMultiChoice(q);
       case "text":
@@ -724,6 +830,7 @@ git commit -m "feat: add normalization for questionnaire params"
 ## Task 5: Formatting
 
 **Files:**
+
 - Create: `src/core/format.ts`
 - Create: `tests/core/format.test.ts`
 
@@ -732,7 +839,7 @@ git commit -m "feat: add normalization for questionnaire params"
 ```ts
 import { describe, expect, it } from "vitest";
 import type {
-  ChoiceAnswer,
+  SingleChoiceAnswer,
   MultiChoiceAnswer,
   NormalizedAnswer,
   NormalizedQuestion,
@@ -746,7 +853,7 @@ import {
 } from "../../src/core/format.ts";
 
 const choiceQ: NormalizedQuestion = {
-  type: "choice",
+  type: "single-choice",
   id: "scope",
   header: "Scope",
   prompt: "Pick scope",
@@ -780,8 +887,15 @@ const textQ: NormalizedQuestion = {
 
 describe("formatModelLine", () => {
   it("formats choice answer", () => {
-    const answer: ChoiceAnswer = { type: "choice", questionId: "scope", value: "small", label: "Small" };
-    expect(formatModelLine(choiceQ, answer)).toBe("Scope: user selected: 1. Small");
+    const answer: SingleChoiceAnswer = {
+      type: "single-choice",
+      questionId: "scope",
+      value: "small",
+      label: "Small",
+    };
+    expect(formatModelLine(choiceQ, answer)).toBe(
+      "Scope: user selected: 1. Small",
+    );
   });
 
   it("formats multi-choice answer", () => {
@@ -793,12 +907,20 @@ describe("formatModelLine", () => {
         { value: "cache", label: "Caching" },
       ],
     };
-    expect(formatModelLine(multiQ, answer)).toBe("Features: user selected: 1. Auth, 3. Caching");
+    expect(formatModelLine(multiQ, answer)).toBe(
+      "Features: user selected: 1. Auth, 3. Caching",
+    );
   });
 
   it("formats text answer", () => {
-    const answer: TextAnswer = { type: "text", questionId: "notes", value: "Keep it simple" };
-    expect(formatModelLine(textQ, answer)).toBe('Notes: user wrote: "Keep it simple"');
+    const answer: TextAnswer = {
+      type: "text",
+      questionId: "notes",
+      value: "Keep it simple",
+    };
+    expect(formatModelLine(textQ, answer)).toBe(
+      'Notes: user wrote: "Keep it simple"',
+    );
   });
 
   it("formats empty text answer", () => {
@@ -809,15 +931,26 @@ describe("formatModelLine", () => {
 
 describe("formatContentSummary", () => {
   it("returns cancelled message when cancelled", () => {
-    const result: QuestionnaireResult = { questions: [], answers: [], cancelled: true };
-    expect(formatContentSummary(result)).toBe("User cancelled the questionnaire");
+    const result: QuestionnaireResult = {
+      questions: [],
+      answers: [],
+      cancelled: true,
+    };
+    expect(formatContentSummary(result)).toBe(
+      "User cancelled the questionnaire",
+    );
   });
 
   it("joins answer lines for submitted result", () => {
     const result: QuestionnaireResult = {
       questions: [choiceQ, textQ],
       answers: [
-        { type: "choice", questionId: "scope", value: "small", label: "Small" },
+        {
+          type: "single-choice",
+          questionId: "scope",
+          value: "small",
+          label: "Small",
+        },
         { type: "text", questionId: "notes", value: "ok" },
       ],
       cancelled: false,
@@ -830,7 +963,12 @@ describe("formatContentSummary", () => {
 
 describe("formatAnswerForRender", () => {
   it("formats choice for display", () => {
-    const answer: ChoiceAnswer = { type: "choice", questionId: "scope", value: "small", label: "Small" };
+    const answer: SingleChoiceAnswer = {
+      type: "single-choice",
+      questionId: "scope",
+      value: "small",
+      label: "Small",
+    };
     expect(formatAnswerForRender(choiceQ, answer)).toBe("1. Small");
   });
 
@@ -844,7 +982,11 @@ describe("formatAnswerForRender", () => {
   });
 
   it("formats text for display", () => {
-    const answer: TextAnswer = { type: "text", questionId: "notes", value: "hello" };
+    const answer: TextAnswer = {
+      type: "text",
+      questionId: "notes",
+      value: "hello",
+    };
     expect(formatAnswerForRender(textQ, answer)).toBe("(wrote) hello");
   });
 });
@@ -858,16 +1000,23 @@ Expected: FAIL
 - [ ] **Step 3: Write `src/core/format.ts`**
 
 ```ts
-import type { NormalizedAnswer, NormalizedQuestion, QuestionnaireResult } from "./types.ts";
+import type {
+  NormalizedAnswer,
+  NormalizedQuestion,
+  QuestionnaireResult,
+} from "./types.ts";
 
 function optionIndex(question: NormalizedQuestion, value: string): number {
   if (question.type === "text") return -1;
   return question.options.findIndex((o) => o.value === value) + 1;
 }
 
-export function formatModelLine(question: NormalizedQuestion, answer: NormalizedAnswer): string {
+export function formatModelLine(
+  question: NormalizedQuestion,
+  answer: NormalizedAnswer,
+): string {
   switch (answer.type) {
-    case "choice": {
+    case "single-choice": {
       const idx = optionIndex(question, answer.value);
       return `${question.header}: user selected: ${idx}. ${answer.label}`;
     }
@@ -900,9 +1049,12 @@ export function formatContentSummary(result: QuestionnaireResult): string {
     .join("\n");
 }
 
-export function formatAnswerForRender(question: NormalizedQuestion, answer: NormalizedAnswer): string {
+export function formatAnswerForRender(
+  question: NormalizedQuestion,
+  answer: NormalizedAnswer,
+): string {
   switch (answer.type) {
-    case "choice": {
+    case "single-choice": {
       const idx = optionIndex(question, answer.value);
       return `${idx}. ${answer.label}`;
     }
@@ -938,6 +1090,7 @@ git commit -m "feat: add answer formatting for model output and display"
 ## Task 6: Core barrel export
 
 **Files:**
+
 - Create: `src/core/index.ts`
 
 - [ ] **Step 1: Write `src/core/index.ts`**
@@ -945,10 +1098,10 @@ git commit -m "feat: add answer formatting for model output and display"
 ```ts
 export { QuestionnaireParamsSchema } from "./schema.ts";
 export type {
-  ChoiceAnswer,
+  SingleChoiceAnswer,
   MultiChoiceAnswer,
   NormalizedAnswer,
-  NormalizedChoiceQuestion,
+  NormalizedSingleChoiceQuestion,
   NormalizedMultiChoiceQuestion,
   NormalizedQuestion,
   NormalizedTextQuestion,
@@ -960,7 +1113,11 @@ export type {
 } from "./types.ts";
 export { validateQuestions } from "./validate.ts";
 export { normalizeQuestions } from "./normalize.ts";
-export { formatContentSummary, formatAnswerForRender, formatModelLine } from "./format.ts";
+export {
+  formatContentSummary,
+  formatAnswerForRender,
+  formatModelLine,
+} from "./format.ts";
 ```
 
 - [ ] **Step 2: Verify it compiles**
