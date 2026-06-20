@@ -13,14 +13,23 @@ This phase builds the TUI components. After this phase the full questionnaire UI
 ## Task 7: TUI helpers
 
 **Files:**
+
 - Create: `src/tui/helpers.ts`
 
 - [ ] **Step 1: Write `src/tui/helpers.ts`**
 
 ```ts
-import { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
+import {
+  truncateToWidth,
+  visibleWidth,
+  wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
 
-export function pushWrapped(lines: string[], text: string, width: number): void {
+export function pushWrapped(
+  lines: string[],
+  text: string,
+  width: number,
+): void {
   for (const line of wrapTextWithAnsi(text, Math.max(1, width))) {
     lines.push(truncateToWidth(line, width));
   }
@@ -61,6 +70,7 @@ git commit -m "feat: add shared TUI line-wrapping helpers"
 ## Task 8: Tab bar rendering
 
 **Files:**
+
 - Create: `src/tui/render-tabs.ts`
 - Create: `tests/tui/render-tabs.test.ts`
 
@@ -81,7 +91,7 @@ const noopTheme = {
 
 const questions: NormalizedQuestion[] = [
   {
-    type: "choice",
+    type: "single-choice",
     id: "scope",
     header: "Scope",
     prompt: "Pick",
@@ -198,6 +208,7 @@ git commit -m "feat: add tab bar rendering"
 ## Task 9: Question rendering
 
 **Files:**
+
 - Create: `src/tui/render-question.ts`
 - Create: `tests/tui/render-question.test.ts`
 
@@ -206,12 +217,12 @@ git commit -m "feat: add tab bar rendering"
 ```ts
 import { describe, expect, it } from "vitest";
 import type {
-  NormalizedChoiceQuestion,
+  NormalizedSingleChoiceQuestion,
   NormalizedMultiChoiceQuestion,
   NormalizedTextQuestion,
 } from "../../src/core/types.ts";
 import {
-  renderChoiceQuestion,
+  renderSingleChoiceQuestion,
   renderMultiChoiceQuestion,
   renderTextQuestion,
 } from "../../src/tui/render-question.ts";
@@ -222,9 +233,9 @@ const noopTheme = {
   bold: (text: string) => text,
 };
 
-describe("renderChoiceQuestion", () => {
-  const question: NormalizedChoiceQuestion = {
-    type: "choice",
+describe("renderSingleChoiceQuestion", () => {
+  const question: NormalizedSingleChoiceQuestion = {
+    type: "single-choice",
     id: "scope",
     header: "Scope",
     prompt: "What scope?",
@@ -236,7 +247,13 @@ describe("renderChoiceQuestion", () => {
   };
 
   it("renders prompt and all options", () => {
-    const lines = renderChoiceQuestion(question, 0, noopTheme, 80);
+    const lines = renderSingleChoiceQuestion(
+      question,
+      0,
+      null,
+      noopTheme,
+      80,
+    );
     const text = lines.join("\n");
     expect(text).toContain("What scope?");
     expect(text).toContain("1. Small");
@@ -244,21 +261,67 @@ describe("renderChoiceQuestion", () => {
   });
 
   it("shows cursor indicator on focused option", () => {
-    const lines = renderChoiceQuestion(question, 0, noopTheme, 80);
+    const lines = renderSingleChoiceQuestion(
+      question,
+      0,
+      null,
+      noopTheme,
+      80,
+    );
     const text = lines.join("\n");
-    expect(text).toContain("> ");
+    expect(text).toContain("\u25B8 ");
   });
 
   it("shows recommendation suffix", () => {
-    const lines = renderChoiceQuestion(question, 0, noopTheme, 80);
+    const lines = renderSingleChoiceQuestion(
+      question,
+      0,
+      null,
+      noopTheme,
+      80,
+    );
     const text = lines.join("\n");
     expect(text).toContain("[recommended]");
   });
 
   it("shows option description", () => {
-    const lines = renderChoiceQuestion(question, 1, noopTheme, 80);
+    const lines = renderSingleChoiceQuestion(
+      question,
+      1,
+      null,
+      noopTheme,
+      80,
+    );
     const text = lines.join("\n");
     expect(text).toContain("Very large");
+  });
+
+  it("shows bullet on selected option when cursor is elsewhere", () => {
+    const lines = renderSingleChoiceQuestion(
+      question,
+      1,
+      "small",
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    // Selected option (index 0 = Small) gets bullet marker
+    expect(text).toContain("\u2022 1. Small");
+    // Cursor option (index 1 = Large) gets cursor marker
+    expect(text).toContain("\u25B8 2. Large");
+  });
+
+  it("shows cursor on selected option when cursor is on it", () => {
+    const lines = renderSingleChoiceQuestion(
+      question,
+      0,
+      "small",
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    // Cursor takes priority over bullet
+    expect(text).toContain("\u25B8 1. Small");
   });
 });
 
@@ -275,17 +338,29 @@ describe("renderMultiChoiceQuestion", () => {
     recommendation: ["auth"],
   };
 
-  it("renders checkboxes", () => {
+  it("renders checkboxes with bullet for checked items", () => {
     const checked = new Set(["auth"]);
-    const lines = renderMultiChoiceQuestion(question, 0, checked, noopTheme, 80);
+    const lines = renderMultiChoiceQuestion(
+      question,
+      0,
+      checked,
+      noopTheme,
+      80,
+    );
     const text = lines.join("\n");
-    expect(text).toContain("[x] 1. Auth");
+    expect(text).toContain("[\u2022] 1. Auth");
     expect(text).toContain("[ ] 2. Logging");
   });
 
   it("shows recommendation suffix on recommended options", () => {
     const checked = new Set<string>();
-    const lines = renderMultiChoiceQuestion(question, 0, checked, noopTheme, 80);
+    const lines = renderMultiChoiceQuestion(
+      question,
+      0,
+      checked,
+      noopTheme,
+      80,
+    );
     const text = lines.join("\n");
     expect(text).toContain("[recommended]");
   });
@@ -324,7 +399,7 @@ Expected: FAIL
 
 ```ts
 import type {
-  NormalizedChoiceQuestion,
+  NormalizedSingleChoiceQuestion,
   NormalizedMultiChoiceQuestion,
   NormalizedTextQuestion,
 } from "../core/types.ts";
@@ -336,9 +411,10 @@ interface QuestionTheme {
   bold: (text: string) => string;
 }
 
-export function renderChoiceQuestion(
-  question: NormalizedChoiceQuestion,
+export function renderSingleChoiceQuestion(
+  question: NormalizedSingleChoiceQuestion,
   cursor: number,
+  selectedValue: string | null,
   theme: QuestionTheme,
   width: number,
 ): string[] {
@@ -350,14 +426,32 @@ export function renderChoiceQuestion(
   for (let i = 0; i < question.options.length; i++) {
     const opt = question.options[i];
     const isCursor = i === cursor;
-    const prefix = isCursor ? theme.fg("accent", "> ") : "  ";
-    const recSuffix = question.recommendation === opt.value ? " [recommended]" : "";
+    const isSelected = selectedValue === opt.value;
+    const recSuffix =
+      question.recommendation === opt.value ? " [recommended]" : "";
     const label = `${i + 1}. ${opt.label}${recSuffix}`;
-    const color = isCursor ? "accent" : "text";
+
+    let prefix: string;
+    let color: string;
+    if (isCursor) {
+      prefix = theme.fg("accent", "\u25B8 ");
+      color = "accent";
+    } else if (isSelected) {
+      prefix = theme.fg("success", "\u2022 ");
+      color = "success";
+    } else {
+      prefix = "  ";
+      color = "text";
+    }
 
     pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
     if (opt.description) {
-      pushWrappedWithPrefix(lines, "     ", theme.fg("muted", opt.description), width);
+      pushWrappedWithPrefix(
+        lines,
+        "     ",
+        theme.fg("muted", opt.description),
+        width,
+      );
     }
   }
 
@@ -380,15 +474,22 @@ export function renderMultiChoiceQuestion(
     const opt = question.options[i];
     const isCursor = i === cursor;
     const isChecked = checked.has(opt.value);
-    const prefix = isCursor ? theme.fg("accent", "> ") : "  ";
-    const marker = isChecked ? "[x]" : "[ ]";
-    const recSuffix = question.recommendation.includes(opt.value) ? " [recommended]" : "";
+    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+    const marker = isChecked ? "[\u2022]" : "[ ]";
+    const recSuffix = question.recommendation.includes(opt.value)
+      ? " [recommended]"
+      : "";
     const label = `${marker} ${i + 1}. ${opt.label}${recSuffix}`;
     const color = isCursor ? "accent" : isChecked ? "success" : "text";
 
     pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
     if (opt.description) {
-      pushWrappedWithPrefix(lines, "       ", theme.fg("muted", opt.description), width);
+      pushWrappedWithPrefix(
+        lines,
+        "       ",
+        theme.fg("muted", opt.description),
+        width,
+      );
     }
   }
 
@@ -411,7 +512,11 @@ export function renderTextQuestion(
   }
 
   lines.push("");
-  pushWrapped(lines, theme.fg("dim", "Enter submit | Tab/Shift+Tab navigate tabs"), width);
+  pushWrapped(
+    lines,
+    theme.fg("dim", "Enter submit | Tab/Shift+Tab navigate tabs"),
+    width,
+  );
 
   return lines;
 }
@@ -426,7 +531,7 @@ Expected: PASS
 
 ```bash
 git add src/tui/render-question.ts tests/tui/render-question.test.ts
-git commit -m "feat: add question rendering for choice, multi-choice, and text"
+git commit -m "feat: add question rendering for single-choice, multi-choice, and text"
 ```
 
 ---
@@ -434,6 +539,7 @@ git commit -m "feat: add question rendering for choice, multi-choice, and text"
 ## Task 10: Review screen rendering
 
 **Files:**
+
 - Create: `src/tui/render-review.ts`
 - Create: `tests/tui/render-review.test.ts`
 
@@ -441,7 +547,10 @@ git commit -m "feat: add question rendering for choice, multi-choice, and text"
 
 ```ts
 import { describe, expect, it } from "vitest";
-import type { NormalizedAnswer, NormalizedQuestion } from "../../src/core/types.ts";
+import type {
+  NormalizedAnswer,
+  NormalizedQuestion,
+} from "../../src/core/types.ts";
 import { renderReviewScreen } from "../../src/tui/render-review.ts";
 
 const noopTheme = {
@@ -452,7 +561,7 @@ const noopTheme = {
 
 const questions: NormalizedQuestion[] = [
   {
-    type: "choice",
+    type: "single-choice",
     id: "scope",
     header: "Scope",
     prompt: "Pick",
@@ -474,7 +583,15 @@ const questions: NormalizedQuestion[] = [
 describe("renderReviewScreen", () => {
   it("shows answered and unanswered rows", () => {
     const answers = new Map<string, NormalizedAnswer>([
-      ["scope", { type: "choice", questionId: "scope", value: "small", label: "Small" }],
+      [
+        "scope",
+        {
+          type: "single-choice",
+          questionId: "scope",
+          value: "small",
+          label: "Small",
+        },
+      ],
     ]);
     const lines = renderReviewScreen(questions, answers, 0, noopTheme, 80);
     const text = lines.join("\n");
@@ -485,7 +602,15 @@ describe("renderReviewScreen", () => {
 
   it("shows submit prompt when all answered", () => {
     const answers = new Map<string, NormalizedAnswer>([
-      ["scope", { type: "choice", questionId: "scope", value: "small", label: "Small" }],
+      [
+        "scope",
+        {
+          type: "single-choice",
+          questionId: "scope",
+          value: "small",
+          label: "Small",
+        },
+      ],
       ["notes", { type: "text", questionId: "notes", value: "ok" }],
     ]);
     const lines = renderReviewScreen(questions, answers, 0, noopTheme, 80);
@@ -537,8 +662,10 @@ export function renderReviewScreen(
     const q = questions[i];
     const answer = answers.get(q.id);
     const isCursor = i === cursor;
-    const prefix = isCursor ? theme.fg("accent", "> ") : "  ";
-    const marker = answer ? theme.fg("success", "\u25A0") : theme.fg("warning", "\u25A1");
+    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+    const marker = answer
+      ? theme.fg("success", "\u25A0")
+      : theme.fg("warning", "\u25A1");
     const value = answer ? formatAnswerForRender(q, answer) : "(unanswered)";
     const valueColor = answer ? "text" : "muted";
 
@@ -552,9 +679,17 @@ export function renderReviewScreen(
 
   lines.push("");
   if (allAnswered) {
-    pushWrapped(lines, theme.fg("success", "Enter submit | Space edit | Esc cancel"), width);
+    pushWrapped(
+      lines,
+      theme.fg("success", "Enter submit | Space edit | Esc cancel"),
+      width,
+    );
   } else {
-    pushWrapped(lines, theme.fg("warning", "Answer all questions before submitting."), width);
+    pushWrapped(
+      lines,
+      theme.fg("warning", "Answer all questions before submitting."),
+      width,
+    );
     pushWrapped(lines, theme.fg("dim", "Space edit | Esc cancel"), width);
   }
 
@@ -579,19 +714,31 @@ git commit -m "feat: add review screen rendering"
 ## Task 11: Questionnaire UI orchestrator
 
 **Files:**
+
 - Create: `src/tui/questionnaire-ui.ts`
 
 This is the main TUI entry point: it creates the `ctx.ui.custom()` closure, owns all mutable state, routes input, and delegates rendering to the render functions from Tasks 8-10.
+
+The theme object from the `ctx.ui.custom()` callback is the live Pi `Theme` instance, which automatically reflects the user's current theme. It is passed through to all render functions unchanged.
 
 - [ ] **Step 1: Write `src/tui/questionnaire-ui.ts`**
 
 ```ts
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Editor, type EditorTheme, Key, matchesKey } from "@earendil-works/pi-tui";
-import type { NormalizedAnswer, NormalizedQuestion, QuestionnaireResult } from "../core/types.ts";
+import {
+  Editor,
+  type EditorTheme,
+  Key,
+  matchesKey,
+} from "@earendil-works/pi-tui";
+import type {
+  NormalizedAnswer,
+  NormalizedQuestion,
+  QuestionnaireResult,
+} from "../core/types.ts";
 import { renderTabBar } from "./render-tabs.ts";
 import {
-  renderChoiceQuestion,
+  renderSingleChoiceQuestion,
   renderMultiChoiceQuestion,
   renderTextQuestion,
 } from "./render-question.ts";
@@ -665,6 +812,14 @@ export async function runQuestionnaireUI(
       return questions.every((q) => answers.has(q.id));
     }
 
+    function getSelectedValue(
+      q: NormalizedQuestion & { type: "single-choice" },
+    ): string | null {
+      const answer = answers.get(q.id);
+      if (answer?.type === "single-choice") return answer.value;
+      return null;
+    }
+
     function switchTab(nextTab: number) {
       activeTab = nextTab;
       optionCursor = 0;
@@ -677,6 +832,18 @@ export async function runQuestionnaireUI(
       }
 
       invalidate();
+    }
+
+    function advanceToNext() {
+      // Find the next unanswered tab (wrapping). Go to Review if all answered.
+      for (let offset = 1; offset <= questions.length; offset++) {
+        const idx = (activeTab + offset) % questions.length;
+        if (!answers.has(questions[idx].id)) {
+          switchTab(idx);
+          return;
+        }
+      }
+      switchTab(reviewTabIndex);
     }
 
     function finalize(cancelled: boolean) {
@@ -692,18 +859,35 @@ export async function runQuestionnaireUI(
     // Input handling
     function handleTabNavigation(data: string): boolean {
       const totalTabs = questions.length + 1;
-      if (matchesKey(data, Key.tab) || matchesKey(data, Key.right)) {
+      // Tab/Shift+Tab always navigate tabs
+      if (matchesKey(data, Key.tab)) {
         switchTab((activeTab + 1) % totalTabs);
         return true;
       }
-      if (matchesKey(data, Key.shift("tab")) || matchesKey(data, Key.left)) {
+      if (matchesKey(data, Key.shift("tab"))) {
         switchTab((activeTab - 1 + totalTabs) % totalTabs);
         return true;
+      }
+      // Left/Right navigate tabs only on non-text questions
+      // (text questions need Left/Right for cursor movement in the editor)
+      const q = currentQuestion();
+      if (q?.type !== "text") {
+        if (matchesKey(data, Key.right)) {
+          switchTab((activeTab + 1) % totalTabs);
+          return true;
+        }
+        if (matchesKey(data, Key.left)) {
+          switchTab((activeTab - 1 + totalTabs) % totalTabs);
+          return true;
+        }
       }
       return false;
     }
 
-    function handleChoiceInput(data: string, q: NormalizedQuestion & { type: "choice" }) {
+    function handleSingleChoiceInput(
+      data: string,
+      q: NormalizedQuestion & { type: "single-choice" },
+    ) {
       const optCount = q.options.length;
 
       if (matchesKey(data, Key.up)) {
@@ -719,17 +903,20 @@ export async function runQuestionnaireUI(
       if (matchesKey(data, Key.enter) || matchesKey(data, Key.space)) {
         const opt = q.options[optionCursor];
         answers.set(q.id, {
-          type: "choice",
+          type: "single-choice",
           questionId: q.id,
           value: opt.value,
           label: opt.label,
         });
-        invalidate();
+        advanceToNext();
         return;
       }
     }
 
-    function handleMultiChoiceInput(data: string, q: NormalizedQuestion & { type: "multi-choice" }) {
+    function handleMultiChoiceInput(
+      data: string,
+      q: NormalizedQuestion & { type: "multi-choice" },
+    ) {
       const optCount = q.options.length;
       const checked = multiChecked.get(q.id) ?? new Set();
 
@@ -756,7 +943,11 @@ export async function runQuestionnaireUI(
           .filter((o) => checked.has(o.value))
           .map((o) => ({ value: o.value, label: o.label }));
         if (selected.length > 0) {
-          answers.set(q.id, { type: "multi-choice", questionId: q.id, selected });
+          answers.set(q.id, {
+            type: "multi-choice",
+            questionId: q.id,
+            selected,
+          });
         } else {
           answers.delete(q.id);
         }
@@ -771,13 +962,13 @@ export async function runQuestionnaireUI(
     }
 
     function handleTextInput(data: string) {
-      // Tab navigation is intercepted first (before editor)
+      // Tab/Shift+Tab intercepted above; Left/Right passed through here
       // Esc cancels the questionnaire
       if (matchesKey(data, Key.escape)) {
         finalize(true);
         return;
       }
-      // Forward everything else to the editor
+      // Forward everything else (including Left/Right for cursor) to the editor
       editor.handleInput(data);
       invalidate();
     }
@@ -827,8 +1018,8 @@ export async function runQuestionnaireUI(
       if (!q) return;
 
       switch (q.type) {
-        case "choice":
-          handleChoiceInput(data, q);
+        case "single-choice":
+          handleSingleChoiceInput(data, q);
           return;
         case "multi-choice":
           handleMultiChoiceInput(data, q);
@@ -849,28 +1040,60 @@ export async function runQuestionnaireUI(
       lines.push(theme.fg("accent", "\u2500".repeat(renderWidth)));
 
       // Tab bar
-      lines.push(...renderTabBar(questions, activeTab, answeredIds(), theme, renderWidth));
+      lines.push(
+        ...renderTabBar(
+          questions,
+          activeTab,
+          answeredIds(),
+          theme,
+          renderWidth,
+        ),
+      );
 
       // Content
       if (activeTab === reviewTabIndex) {
-        lines.push(...renderReviewScreen(questions, answers, reviewCursor, theme, renderWidth));
+        lines.push(
+          ...renderReviewScreen(
+            questions,
+            answers,
+            reviewCursor,
+            theme,
+            renderWidth,
+          ),
+        );
       } else {
         const q = currentQuestion();
         if (q) {
           switch (q.type) {
-            case "choice":
-              lines.push(...renderChoiceQuestion(q, optionCursor, theme, renderWidth));
+            case "single-choice":
+              lines.push(
+                ...renderSingleChoiceQuestion(
+                  q,
+                  optionCursor,
+                  getSelectedValue(q),
+                  theme,
+                  renderWidth,
+                ),
+              );
               break;
             case "multi-choice": {
               const checked = multiChecked.get(q.id) ?? new Set();
               lines.push(
-                ...renderMultiChoiceQuestion(q, optionCursor, checked, theme, renderWidth),
+                ...renderMultiChoiceQuestion(
+                  q,
+                  optionCursor,
+                  checked,
+                  theme,
+                  renderWidth,
+                ),
               );
               break;
             }
             case "text": {
               const editorLines = editor.render(Math.max(1, renderWidth - 2));
-              lines.push(...renderTextQuestion(q, editorLines, theme, renderWidth));
+              lines.push(
+                ...renderTextQuestion(q, editorLines, theme, renderWidth),
+              );
               break;
             }
           }
@@ -924,6 +1147,7 @@ git commit -m "feat: add questionnaire UI orchestrator with state and input rout
 ## Task 12: TUI barrel export
 
 **Files:**
+
 - Create: `src/tui/index.ts`
 
 - [ ] **Step 1: Write `src/tui/index.ts`**
