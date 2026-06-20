@@ -1,0 +1,69 @@
+import type {
+  NormalizedChoiceQuestion,
+  NormalizedMultiChoiceQuestion,
+  NormalizedQuestion,
+  NormalizedTextQuestion,
+  QuestionInput,
+  QuestionOption,
+} from "./types.ts";
+
+function normalizeOptions(options: QuestionOption[]): QuestionOption[] {
+  return options.map((opt) => ({
+    value: opt.value.trim(),
+    label: opt.label.trim(),
+    description: opt.description?.trim() || undefined,
+  }));
+}
+
+function normalizeChoice(
+  q: QuestionInput & { type: "single-choice" },
+): NormalizedChoiceQuestion {
+  return {
+    type: "single-choice",
+    id: q.id.trim(),
+    header: q.header.trim(),
+    prompt: q.prompt.trim(),
+    options: normalizeOptions(q.options),
+    recommendation: q.recommendation?.trim() ?? null,
+  };
+}
+
+function normalizeMultiChoice(
+  q: QuestionInput & { type: "multi-choice" },
+): NormalizedMultiChoiceQuestion {
+  return {
+    type: "multi-choice",
+    id: q.id.trim(),
+    header: q.header.trim(),
+    prompt: q.prompt.trim(),
+    options: normalizeOptions(q.options),
+    recommendation: q.recommendation?.map((r) => r.trim()) ?? [],
+  };
+}
+
+function normalizeText(
+  q: QuestionInput & { type: "text" },
+): NormalizedTextQuestion {
+  return {
+    type: "text",
+    id: q.id.trim(),
+    header: q.header.trim(),
+    prompt: q.prompt.trim(),
+    recommendation: q.recommendation?.trim() || null,
+  };
+}
+
+export function normalizeQuestions(
+  questions: QuestionInput[],
+): NormalizedQuestion[] {
+  return questions.map((q) => {
+    switch (q.type) {
+      case "single-choice":
+        return normalizeChoice(q);
+      case "multi-choice":
+        return normalizeMultiChoice(q);
+      case "text":
+        return normalizeText(q);
+    }
+  });
+}
