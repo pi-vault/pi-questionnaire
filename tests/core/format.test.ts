@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type {
   ChoiceAnswer,
   MultiChoiceAnswer,
-  NormalizedAnswer,
   NormalizedQuestion,
   QuestionnaireResult,
   TextAnswer,

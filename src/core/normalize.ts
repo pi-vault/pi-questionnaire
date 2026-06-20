@@ -57,13 +57,8 @@ export function normalizeQuestions(
   questions: QuestionInput[],
 ): NormalizedQuestion[] {
   return questions.map((q) => {
-    switch (q.type) {
-      case "single-choice":
-        return normalizeChoice(q);
-      case "multi-choice":
-        return normalizeMultiChoice(q);
-      case "text":
-        return normalizeText(q);
-    }
+    if (q.type === "single-choice") return normalizeChoice(q);
+    if (q.type === "multi-choice") return normalizeMultiChoice(q);
+    return normalizeText(q);
   });
 }
