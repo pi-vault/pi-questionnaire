@@ -60,7 +60,7 @@ export async function runQuestionnaireUI(
 
     editor.onSubmit = (value) => {
       const q = currentQuestion();
-      if (!q || q.type !== "text") return;
+      if (q?.type !== "text") return;
       const trimmed = value.trim();
       textValues.set(q.id, trimmed);
       answers.set(q.id, { type: "text", questionId: q.id, value: trimmed });
