@@ -23,6 +23,7 @@ function normalizeSingleChoice(
     prompt: q.prompt.trim(),
     options: normalizeOptions(q.options),
     recommendation: q.recommendation?.trim() ?? null,
+    allowOther: q.allowOther !== false,
   };
 }
 

@@ -15,6 +15,7 @@ const questions: NormalizedQuestion[] = [
       { value: "large", label: "Large" },
     ],
     recommendation: null,
+    allowOther: false,
   },
   {
     type: "multi-choice",
@@ -32,7 +33,7 @@ const questions: NormalizedQuestion[] = [
 describe("renderQuestionnaire", () => {
   it("renders tab bar and question content for single-choice", () => {
     const state = initState(questions);
-    const lines = renderQuestionnaire(state, questions, noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Scope");
     expect(text).toContain("Pick scope");
@@ -42,7 +43,7 @@ describe("renderQuestionnaire", () => {
 
   it("renders review screen when on review tab", () => {
     const state = { ...initState(questions), activeTab: questions.length };
-    const lines = renderQuestionnaire(state, questions, noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Review answers");
     expect(text).toContain("(unanswered)");
@@ -50,15 +51,28 @@ describe("renderQuestionnaire", () => {
 
   it("includes hint bar for choice questions", () => {
     const state = initState(questions);
-    const lines = renderQuestionnaire(state, questions, noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Left/Right tabs");
     expect(text).toContain("Space/Enter select");
   });
 
+  it("shows typing mode hint bar when inputMode is typing", () => {
+    const state = {
+      ...initState(questions),
+      inputMode: "typing" as const,
+      editingQuestionId: "scope",
+    };
+    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
+    const text = lines.join("\n");
+    expect(text).toContain("Enter submit");
+    expect(text).toContain("Esc cancel");
+    expect(text).toContain("Up/Down exit");
+  });
+
   it("shows separator lines at top and bottom", () => {
     const state = initState(questions);
-    const lines = renderQuestionnaire(state, questions, noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
     expect(lines[0]).toContain("\u2500");
     expect(lines[lines.length - 1]).toContain("\u2500");
   });

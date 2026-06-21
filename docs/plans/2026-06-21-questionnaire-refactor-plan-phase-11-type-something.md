@@ -4,6 +4,10 @@
 
 **Goal:** Add the `allowOther` field, `inputMode` state, inline editor, and "Type something." sentinel row to single-choice questions.
 
+**Architecture:** Single-choice questions gain an optional sentinel row ("Type something.") that opens an inline `Editor` from `@earendil-works/pi-tui`. The state machine gains three new actions (`enterTyping` / `submitTyping` / `cancelTyping`) and an `inputMode` field. Input routing short-circuits to the editor while typing; Esc/Up/Down cancel back to navigate mode. Custom answers are stored as `{ kind: "custom", value }` selections.
+
+**Tech Stack:** TypeScript, Vitest, Typebox (schema), `@earendil-works/pi-tui` (Editor, Key, matchesKey)
+
 **Spec:** `docs/specs/2026-06-21-questionnaire-refactor-design.md`
 
 **Master plan:** `docs/plans/2026-06-21-questionnaire-refactor-plan.md`
@@ -14,9 +18,7 @@
 
 ---
 
-Add the `allowOther` field, `inputMode` state, inline editor, and "Type something." sentinel row to single-choice questions.
-
-### Task 11.1: Add `allowOther` to Schema and Types
+### Task 11.1: Add `allowOther` to Schema, Types, Normalize, and Existing Fixtures
 
 **Files:**
 
@@ -24,10 +26,14 @@ Add the `allowOther` field, `inputMode` state, inline editor, and "Type somethin
 - Modify: `src/core/types.ts`
 - Modify: `src/core/normalize.ts`
 - Test: `tests/core/normalize.test.ts`
+- Modify: `tests/tui/state.test.ts` (fixture update)
+- Modify: `tests/tui/input.test.ts` (fixture update)
+- Modify: `tests/tui/render-question.test.ts` (fixture update)
+- Modify: `tests/tui/render.test.ts` (fixture update)
 
 - [ ] **Step 1: Add `allowOther` to `SingleChoiceQuestionSchema`**
 
-In `src/core/schema.ts`, add to `SingleChoiceQuestionSchema`:
+In `src/core/schema.ts`, add inside `SingleChoiceQuestionSchema` after the `recommendation` field:
 
 ```ts
 allowOther: Type.Optional(
@@ -40,7 +46,13 @@ allowOther: Type.Optional(
 
 - [ ] **Step 2: Add `allowOther` to `NormalizedSingleChoiceQuestion`**
 
-In `src/core/types.ts`:
+In `src/core/types.ts`, add to the `NormalizedSingleChoiceQuestion` interface after `recommendation`:
+
+```ts
+allowOther: boolean;
+```
+
+The full interface becomes:
 
 ```ts
 export interface NormalizedSingleChoiceQuestion {
@@ -56,7 +68,13 @@ export interface NormalizedSingleChoiceQuestion {
 
 - [ ] **Step 3: Update normalization**
 
-In `src/core/normalize.ts`, update `normalizeSingleChoice`:
+In `src/core/normalize.ts`, add to the return object in `normalizeSingleChoice` after `recommendation`:
+
+```ts
+allowOther: q.allowOther !== false,
+```
+
+The full function becomes:
 
 ```ts
 function normalizeSingleChoice(
@@ -74,14 +92,92 @@ function normalizeSingleChoice(
 }
 ```
 
-- [ ] **Step 4: Update normalize tests**
+- [ ] **Step 4: Add normalize tests**
 
-Add test: `it("defaults allowOther to true for single-choice")` and `it("preserves allowOther: false")`.
+In `tests/core/normalize.test.ts`, add inside the `describe("normalizeQuestions")` block:
 
-- [ ] **Step 5: Run tests**
+```ts
+it("defaults allowOther to true for single-choice", () => {
+  const input: QuestionInput[] = [
+    {
+      type: "single-choice",
+      id: "q1",
+      header: "Q1",
+      prompt: "Pick",
+      options: [
+        { value: "a", label: "A" },
+        { value: "b", label: "B" },
+      ],
+    },
+  ];
+  const result = normalizeQuestions(input);
+  if (result[0].type === "single-choice") {
+    expect(result[0].allowOther).toBe(true);
+  }
+});
 
-Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && npx vitest run tests/core/normalize.test.ts`
-Expected: PASS
+it("preserves allowOther: false for single-choice", () => {
+  const input: QuestionInput[] = [
+    {
+      type: "single-choice",
+      id: "q1",
+      header: "Q1",
+      prompt: "Pick",
+      options: [
+        { value: "a", label: "A" },
+        { value: "b", label: "B" },
+      ],
+      allowOther: false,
+    },
+  ];
+  const result = normalizeQuestions(input);
+  if (result[0].type === "single-choice") {
+    expect(result[0].allowOther).toBe(false);
+  }
+});
+```
+
+- [ ] **Step 5: Update all existing `NormalizedSingleChoiceQuestion` fixtures**
+
+Adding `allowOther: boolean` to the interface makes it required. All existing test fixtures that construct `NormalizedSingleChoiceQuestion` objects must be updated. Set `allowOther: false` on all existing fixtures to preserve their current behavior (no sentinel row, cursor clamping unchanged).
+
+**`tests/tui/state.test.ts`** — the `questions` array, first element (around line 15). Add after `recommendation: "small"`:
+
+```ts
+allowOther: false,
+```
+
+**`tests/tui/input.test.ts`** — the `questions` array, first element (around line 8). Add after `recommendation: null`:
+
+```ts
+allowOther: false,
+```
+
+**`tests/tui/render-question.test.ts`** — the `question` constant inside the `renderSingleChoiceQuestion` describe (around line 13). Add after `recommendation: "small"`:
+
+```ts
+allowOther: false,
+```
+
+**`tests/tui/render.test.ts`** — the `questions` array, first element (around line 9). Add after `recommendation: null`:
+
+```ts
+allowOther: false,
+```
+
+- [ ] **Step 6: Run tests**
+
+Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && npx vitest run`
+Expected: PASS — all existing tests pass, new normalize tests pass.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/core/ tests/
+git commit -m "feat: add allowOther field to single-choice schema, types, and normalization"
+```
+
+---
 
 ### Task 11.2: Add Sentinel Helpers and State Changes
 
@@ -90,16 +186,14 @@ Expected: PASS
 - Modify: `src/tui/state.ts`
 - Test: `tests/tui/state.test.ts`
 
-- [ ] **Step 1: Add `CursorTarget` type and `visibleRowCount`/`cursorTarget` helpers**
+- [ ] **Step 1: Add `CursorTarget` type and helper functions**
 
-Add at the top of `src/tui/state.ts` (after imports):
+In `src/tui/state.ts`, add after the imports (before the `QuestionnaireState` interface):
 
 ```ts
 export type CursorTarget =
   | { kind: "option"; index: number }
-  | { kind: "other" }
-  | { kind: "chat" }
-  | { kind: "next" };
+  | { kind: "other" };
 
 export function visibleRowCount(question: NormalizedQuestion): number {
   if (question.type === "single-choice") {
@@ -129,9 +223,82 @@ export function cursorTarget(
 }
 ```
 
-- [ ] **Step 2: Add new state fields and actions**
+- [ ] **Step 2: Write tests for helpers**
 
-Update `QuestionnaireState`:
+In `tests/tui/state.test.ts`, add the following imports to the existing import from `../../src/tui/state.ts`:
+
+```ts
+visibleRowCount,
+cursorTarget,
+```
+
+Add a standalone fixture (after the `questions` array, outside any describe block):
+
+```ts
+const singleWithOther: NormalizedQuestion = {
+  type: "single-choice",
+  id: "scope-other",
+  header: "Scope",
+  prompt: "Pick scope",
+  options: [
+    { value: "small", label: "Small" },
+    { value: "large", label: "Large" },
+  ],
+  recommendation: null,
+  allowOther: true,
+};
+```
+
+Add these describe blocks after the existing describes:
+
+```ts
+describe("visibleRowCount", () => {
+  it("includes sentinel for single-choice with allowOther", () => {
+    expect(visibleRowCount(singleWithOther)).toBe(3); // 2 options + 1 sentinel
+  });
+
+  it("excludes sentinel when allowOther is false", () => {
+    expect(visibleRowCount(questions[0])).toBe(2); // 2 options, no sentinel
+  });
+
+  it("returns options.length for multi-choice", () => {
+    expect(visibleRowCount(questions[1])).toBe(2);
+  });
+});
+
+describe("cursorTarget", () => {
+  it("returns option for cursor within options range", () => {
+    expect(cursorTarget(singleWithOther, 0)).toEqual({
+      kind: "option",
+      index: 0,
+    });
+    expect(cursorTarget(singleWithOther, 1)).toEqual({
+      kind: "option",
+      index: 1,
+    });
+  });
+
+  it("returns other for cursor at sentinel position", () => {
+    expect(cursorTarget(singleWithOther, 2)).toEqual({ kind: "other" });
+  });
+
+  it("clamps to last option when cursor overflows without sentinel", () => {
+    expect(cursorTarget(questions[0], 5)).toEqual({
+      kind: "option",
+      index: 1,
+    });
+  });
+});
+```
+
+- [ ] **Step 3: Run helper tests**
+
+Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && npx vitest run tests/tui/state.test.ts`
+Expected: PASS
+
+- [ ] **Step 4: Add new state fields and actions**
+
+In `src/tui/state.ts`, update the `QuestionnaireState` interface:
 
 ```ts
 export interface QuestionnaireState {
@@ -146,27 +313,45 @@ export interface QuestionnaireState {
 }
 ```
 
-Update `Action` union — add:
+Update the `Action` type — add three new variants:
 
 ```ts
-| { type: "enterTyping"; questionId: string }
-| { type: "submitTyping"; questionId: string; value: string }
-| { type: "cancelTyping" }
+export type Action =
+  | { type: "switchTab"; tab: number }
+  | { type: "moveCursor"; direction: "up" | "down" }
+  | { type: "selectOption"; questionId: string; value: string; label: string }
+  | { type: "toggleCheckbox"; questionId: string; value: string }
+  | { type: "resetCursors" }
+  | { type: "enterTyping"; questionId: string }
+  | { type: "submitTyping"; questionId: string; value: string }
+  | { type: "cancelTyping" };
 ```
 
-Update `initState` — initialize new fields:
+- [ ] **Step 5: Update `initState` and `cloneState`**
+
+Update `initState` — add new field initializers:
 
 ```ts
-return {
-  activeTab: 0,
-  optionCursor: 0,
-  reviewCursor: 0,
-  answers: new Map(),
-  multiChecked,
-  inputMode: "navigate",
-  editingQuestionId: null,
-  customText: new Map(),
-};
+export function initState(questions: NormalizedQuestion[]): QuestionnaireState {
+  const multiChecked = new Map<string, Set<string>>();
+
+  for (const q of questions) {
+    if (q.type === "multi-choice") {
+      multiChecked.set(q.id, new Set(q.recommendation));
+    }
+  }
+
+  return {
+    activeTab: 0,
+    optionCursor: 0,
+    reviewCursor: 0,
+    answers: new Map(),
+    multiChecked,
+    inputMode: "navigate",
+    editingQuestionId: null,
+    customText: new Map(),
+  };
+}
 ```
 
 Update `cloneState`:
@@ -188,9 +373,9 @@ function cloneState(state: QuestionnaireState): QuestionnaireState {
 }
 ```
 
-- [ ] **Step 3: Update `moveCursor` in reducer**
+- [ ] **Step 6: Update `moveCursor` reducer case**
 
-Use `visibleRowCount` for cursor clamping:
+Replace the `moveCursor` case body to use `visibleRowCount`:
 
 ```ts
 case "moveCursor": {
@@ -217,7 +402,24 @@ case "moveCursor": {
 }
 ```
 
-- [ ] **Step 4: Add reducer cases for typing actions**
+- [ ] **Step 7: Update `switchTab` to reset inputMode**
+
+Replace the `switchTab` case body:
+
+```ts
+case "switchTab": {
+  next.activeTab = action.tab;
+  next.optionCursor = 0;
+  next.reviewCursor = 0;
+  next.inputMode = "navigate";
+  next.editingQuestionId = null;
+  return next;
+}
+```
+
+- [ ] **Step 8: Add reducer cases for typing actions**
+
+Add these cases inside the `switch (action.type)` block, before the closing `}`:
 
 ```ts
 case "enterTyping": {
@@ -249,56 +451,98 @@ case "cancelTyping": {
 }
 ```
 
-- [ ] **Step 5: Update `switchTab` to reset inputMode**
+- [ ] **Step 9: Write tests for new state fields and actions**
+
+In `tests/tui/state.test.ts`, add inside the `describe("initState")` block:
 
 ```ts
-case "switchTab": {
-  next.activeTab = action.tab;
-  next.optionCursor = 0;
-  next.reviewCursor = 0;
-  next.inputMode = "navigate";
-  next.editingQuestionId = null;
-  return next;
-}
-```
-
-- [ ] **Step 6: Write tests for new helpers and actions**
-
-Add tests in `tests/tui/state.test.ts`:
-
-```ts
-describe("visibleRowCount", () => {
-  it("includes other sentinel for single-choice", () => {
-    const q = { ...singleQ, allowOther: true };
-    expect(visibleRowCount(q)).toBe(q.options.length + 1);
-  });
-
-  it("excludes other sentinel when allowOther is false", () => {
-    const q = { ...singleQ, allowOther: false };
-    expect(visibleRowCount(q)).toBe(q.options.length);
-  });
-});
-
-describe("cursorTarget", () => {
-  it("returns option for cursor within options range", () => {
-    const q = { ...singleQ, allowOther: true };
-    expect(cursorTarget(q, 0)).toEqual({ kind: "option", index: 0 });
-    expect(cursorTarget(q, 1)).toEqual({ kind: "option", index: 1 });
-  });
-
-  it("returns other for cursor at options.length", () => {
-    const q = { ...singleQ, allowOther: true };
-    expect(cursorTarget(q, q.options.length)).toEqual({ kind: "other" });
-  });
+it("initializes inputMode to navigate", () => {
+  const state = initState(questions);
+  expect(state.inputMode).toBe("navigate");
+  expect(state.editingQuestionId).toBeNull();
+  expect(state.customText.size).toBe(0);
 });
 ```
 
-Add tests for `enterTyping`, `submitTyping`, `cancelTyping` actions in the `reduce` describe block.
+Add inside the `describe("reduce")` block:
 
-- [ ] **Step 7: Run tests**
+```ts
+it("enterTyping sets inputMode and editingQuestionId", () => {
+  const state = initState(questions);
+  const next = reduce(
+    state,
+    { type: "enterTyping", questionId: "scope" },
+    questions,
+  );
+  expect(next.inputMode).toBe("typing");
+  expect(next.editingQuestionId).toBe("scope");
+});
+
+it("submitTyping stores custom text, sets answer, and advances tab", () => {
+  const state = initState(questions);
+  state.inputMode = "typing";
+  state.editingQuestionId = "scope";
+  const next = reduce(
+    state,
+    { type: "submitTyping", questionId: "scope", value: "My answer" },
+    questions,
+  );
+  expect(next.customText.get("scope")).toBe("My answer");
+  expect(next.answers.get("scope")).toEqual({
+    kind: "custom",
+    value: "My answer",
+  });
+  expect(next.inputMode).toBe("navigate");
+  expect(next.editingQuestionId).toBeNull();
+  expect(next.activeTab).toBe(1); // advanced to next unanswered
+});
+
+it("submitTyping with empty string does not record answer", () => {
+  const state = initState(questions);
+  state.inputMode = "typing";
+  state.editingQuestionId = "scope";
+  const next = reduce(
+    state,
+    { type: "submitTyping", questionId: "scope", value: "   " },
+    questions,
+  );
+  expect(next.answers.has("scope")).toBe(false);
+  expect(next.inputMode).toBe("navigate");
+});
+
+it("cancelTyping resets inputMode without recording answer", () => {
+  const state = initState(questions);
+  state.inputMode = "typing";
+  state.editingQuestionId = "scope";
+  const next = reduce(state, { type: "cancelTyping" }, questions);
+  expect(next.inputMode).toBe("navigate");
+  expect(next.editingQuestionId).toBeNull();
+  expect(next.answers.has("scope")).toBe(false);
+});
+
+it("switchTab resets inputMode when in typing mode", () => {
+  const state = initState(questions);
+  state.inputMode = "typing";
+  state.editingQuestionId = "scope";
+  const next = reduce(state, { type: "switchTab", tab: 1 }, questions);
+  expect(next.inputMode).toBe("navigate");
+  expect(next.editingQuestionId).toBeNull();
+});
+```
+
+- [ ] **Step 10: Run tests**
 
 Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && npx vitest run tests/tui/state.test.ts`
 Expected: PASS
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add src/tui/state.ts tests/tui/state.test.ts
+git commit -m "feat: add sentinel helpers, typing state, and reducer actions"
+```
+
+---
 
 ### Task 11.3: Update Input Mapping for Typing Mode
 
@@ -307,9 +551,23 @@ Expected: PASS
 - Modify: `src/tui/input.ts`
 - Test: `tests/tui/input.test.ts`
 
-- [ ] **Step 1: Add `forward-to-editor` back and typing mode routing**
+- [ ] **Step 1: Update `InputResult` and add typing mode routing**
 
-Update `InputResult`:
+In `src/tui/input.ts`:
+
+Add `cursorTarget` to the import from `./state.ts`:
+
+```ts
+import {
+  type Action,
+  type QuestionnaireState,
+  allAnswered,
+  currentQuestion,
+  cursorTarget,
+} from "./state.ts";
+```
+
+Update the `InputResult` type to include `forward-to-editor`:
 
 ```ts
 export type InputResult =
@@ -319,14 +577,11 @@ export type InputResult =
   | { type: "none" };
 ```
 
-Add typing mode handling at the top of `mapInput`, before any other key checks:
+Add typing mode routing at the **very top** of the `mapInput` function body, **before** the `// Global Esc` check:
 
 ```ts
-// Typing mode — editor active for "Type something."
+// Typing mode — forward most keys to the inline editor
 if (state.inputMode === "typing") {
-  if (matchesKey(data, Key.enter)) {
-    return { type: "none" }; // editor.onSubmit handles this
-  }
   if (matchesKey(data, Key.escape)) {
     return action({ type: "cancelTyping" });
   }
@@ -336,16 +591,19 @@ if (state.inputMode === "typing") {
   if (matchesKey(data, Key.down)) {
     return action({ type: "cancelTyping" });
   }
-  // Left/Right and all other keys → forward to editor
+  // Enter, Left, Right, and all other keys → forward to editor
   return { type: "forward-to-editor" };
 }
 ```
 
-Note: Enter in typing mode is handled by `editor.onSubmit` in `questionnaire-ui.ts`, not by `mapInput`. So `mapInput` returns `none` for Enter. The `cancelTyping` action on Up/Down returns navigate mode, and the cursor movement will be handled on the next keypress.
+**Why Enter goes to the editor:** The `Editor` from `@earendil-works/pi-tui` calls its `onSubmit` callback when it receives Enter. The `questionnaire-ui.ts` wires that callback to dispatch `submitTyping`. Returning `none` would swallow the Enter key and break submission.
 
-Update the single-choice Space/Enter handler to detect sentinel rows:
+- [ ] **Step 2: Update single-choice Enter/Space to detect sentinel**
+
+Replace the existing single-choice `Enter/Space` handler (the `if (matchesKey(data, Key.enter) || matchesKey(data, Key.space))` block and the `const opt = q.options[state.optionCursor]` line inside it):
 
 ```ts
+// Single-choice
 if (q.type === "single-choice") {
   if (matchesKey(data, Key.up)) {
     return action({ type: "moveCursor", direction: "up" });
@@ -372,22 +630,141 @@ if (q.type === "single-choice") {
 }
 ```
 
-Add import for `cursorTarget` from state.
+- [ ] **Step 3: Write tests for typing mode input**
 
-- [ ] **Step 2: Write tests for typing mode input**
+In `tests/tui/input.test.ts`, add `NormalizedSingleChoiceQuestion` to the type import:
 
-Add tests:
+```ts
+import type {
+  NormalizedQuestion,
+  NormalizedSingleChoiceQuestion,
+} from "../../src/core/types.ts";
+```
 
-- `it("forwards keys to editor in typing mode")`
-- `it("Esc in typing mode returns cancelTyping action")`
-- `it("Up in typing mode returns cancelTyping action")`
-- `it("Down in typing mode returns cancelTyping action")`
-- `it("Enter/Space on 'other' sentinel returns enterTyping")`
+Add a fixture for a question with `allowOther: true` (after the `questions` array):
 
-- [ ] **Step 3: Run tests**
+```ts
+const singleWithOther: NormalizedSingleChoiceQuestion = {
+  type: "single-choice",
+  id: "scope",
+  header: "Scope",
+  prompt: "Pick scope",
+  options: [
+    { value: "small", label: "Small" },
+    { value: "large", label: "Large" },
+  ],
+  recommendation: null,
+  allowOther: true,
+};
+const questionsWithOther: NormalizedQuestion[] = [singleWithOther];
+```
+
+Add these tests inside the `describe("mapInput")` block:
+
+```ts
+it("Esc in typing mode returns cancelTyping", () => {
+  const state = {
+    ...initState(questionsWithOther),
+    inputMode: "typing" as const,
+    editingQuestionId: "scope",
+  };
+  const result = mapInput("\x1b", state, questionsWithOther);
+  expect(result.type).toBe("action");
+  if (result.type === "action") {
+    expect(result.action).toEqual({ type: "cancelTyping" });
+  }
+});
+
+it("Up in typing mode returns cancelTyping", () => {
+  const state = {
+    ...initState(questionsWithOther),
+    inputMode: "typing" as const,
+    editingQuestionId: "scope",
+  };
+  const result = mapInput("\x1b[A", state, questionsWithOther);
+  expect(result.type).toBe("action");
+  if (result.type === "action") {
+    expect(result.action).toEqual({ type: "cancelTyping" });
+  }
+});
+
+it("Down in typing mode returns cancelTyping", () => {
+  const state = {
+    ...initState(questionsWithOther),
+    inputMode: "typing" as const,
+    editingQuestionId: "scope",
+  };
+  const result = mapInput("\x1b[B", state, questionsWithOther);
+  expect(result.type).toBe("action");
+  if (result.type === "action") {
+    expect(result.action).toEqual({ type: "cancelTyping" });
+  }
+});
+
+it("forwards Enter to editor in typing mode", () => {
+  const state = {
+    ...initState(questionsWithOther),
+    inputMode: "typing" as const,
+    editingQuestionId: "scope",
+  };
+  const result = mapInput("\r", state, questionsWithOther);
+  expect(result).toEqual({ type: "forward-to-editor" });
+});
+
+it("forwards character keys to editor in typing mode", () => {
+  const state = {
+    ...initState(questionsWithOther),
+    inputMode: "typing" as const,
+    editingQuestionId: "scope",
+  };
+  const result = mapInput("a", state, questionsWithOther);
+  expect(result).toEqual({ type: "forward-to-editor" });
+});
+
+it("Space on sentinel returns enterTyping", () => {
+  const state = {
+    ...initState(questionsWithOther),
+    optionCursor: 2, // sentinel position (2 options)
+  };
+  const result = mapInput(" ", state, questionsWithOther);
+  expect(result.type).toBe("action");
+  if (result.type === "action") {
+    expect(result.action).toEqual({
+      type: "enterTyping",
+      questionId: "scope",
+    });
+  }
+});
+
+it("Enter on sentinel returns enterTyping", () => {
+  const state = {
+    ...initState(questionsWithOther),
+    optionCursor: 2, // sentinel position (2 options)
+  };
+  const result = mapInput("\r", state, questionsWithOther);
+  expect(result.type).toBe("action");
+  if (result.type === "action") {
+    expect(result.action).toEqual({
+      type: "enterTyping",
+      questionId: "scope",
+    });
+  }
+});
+```
+
+- [ ] **Step 4: Run tests**
 
 Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && npx vitest run tests/tui/input.test.ts`
 Expected: PASS
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/tui/input.ts tests/tui/input.test.ts
+git commit -m "feat: add typing mode input routing and sentinel detection"
+```
+
+---
 
 ### Task 11.4: Update Rendering for "Type Something."
 
@@ -396,11 +773,12 @@ Expected: PASS
 - Modify: `src/tui/render-question.ts`
 - Modify: `src/tui/render.ts`
 - Modify: `src/tui/questionnaire-ui.ts`
-- Test: `tests/tui/render-question.test.ts`, `tests/tui/render.test.ts`
+- Test: `tests/tui/render-question.test.ts`
+- Test: `tests/tui/render.test.ts`
 
-- [ ] **Step 1: Add sentinel row rendering to `renderSingleChoiceQuestion`**
+- [ ] **Step 1: Update `renderSingleChoiceQuestion` signature and add sentinel rendering**
 
-Update the function signature to accept new parameters:
+In `src/tui/render-question.ts`, replace the `renderSingleChoiceQuestion` function entirely:
 
 ```ts
 export function renderSingleChoiceQuestion(
@@ -412,39 +790,170 @@ export function renderSingleChoiceQuestion(
   editorLines: string[],
   theme: RenderTheme,
   width: number,
-): string[];
-```
+): string[] {
+  const lines: string[] = [];
 
-After the options loop, add sentinel rendering:
+  pushWrapped(lines, theme.fg("text", question.prompt), width);
+  lines.push("");
 
-```ts
-// "Type something." sentinel
-if (question.allowOther) {
-  const sentinelIndex = question.options.length;
-  const isCursor = sentinelIndex === cursor;
-  const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+  for (let i = 0; i < question.options.length; i++) {
+    const opt = question.options[i];
+    const isCursor = i === cursor;
+    const isSelected = selectedValue === opt.value;
+    const recSuffix =
+      question.recommendation === opt.value ? " [recommended]" : "";
+    const label = `${i + 1}. ${opt.label}${recSuffix}`;
 
-  if (inputMode === "typing") {
-    // Inline editor replaces the sentinel text
-    const editorContent = editorLines.join("") || "";
-    const label = `${sentinelIndex + 1}. ${editorContent}`;
-    pushWrappedWithPrefix(lines, prefix, theme.fg("accent", label), width);
-  } else if (customText) {
-    // Show persisted custom text
-    const label = `${sentinelIndex + 1}. "${customText}"`;
-    const color = isCursor ? "accent" : "text";
+    let prefix: string;
+    let color: string;
+    if (isCursor) {
+      prefix = theme.fg("accent", "\u25B8 ");
+      color = "accent";
+    } else if (isSelected) {
+      prefix = theme.fg("success", "\u2022 ");
+      color = "success";
+    } else {
+      prefix = "  ";
+      color = "text";
+    }
+
     pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-  } else {
-    const label = `${sentinelIndex + 1}. Type something.`;
-    const color = isCursor ? "accent" : "muted";
-    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+    if (opt.description) {
+      pushWrappedWithPrefix(
+        lines,
+        "     ",
+        theme.fg("muted", opt.description),
+        width,
+      );
+    }
   }
+
+  // "Type something." sentinel
+  if (question.allowOther) {
+    const sentinelIndex = question.options.length;
+    const isCursor = sentinelIndex === cursor;
+    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+
+    if (inputMode === "typing") {
+      const editorContent = editorLines.join("") || "";
+      const label = `${sentinelIndex + 1}. ${editorContent}`;
+      pushWrappedWithPrefix(lines, prefix, theme.fg("accent", label), width);
+    } else if (customText) {
+      const label = `${sentinelIndex + 1}. "${customText}"`;
+      const color = isCursor ? "accent" : "text";
+      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+    } else {
+      const label = `${sentinelIndex + 1}. Type something.`;
+      const color = isCursor ? "accent" : "muted";
+      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+    }
+  }
+
+  return lines;
 }
 ```
 
-- [ ] **Step 2: Update `render.ts`**
+- [ ] **Step 2: Update existing `renderSingleChoiceQuestion` test calls**
 
-Add `editorLines` parameter back to `renderQuestionnaire`. Pass `customText`, `inputMode`, and `editorLines` to `renderSingleChoiceQuestion`:
+In `tests/tui/render-question.test.ts`, every existing call to `renderSingleChoiceQuestion` has 5 arguments. They all need 3 new arguments inserted **before** `noopTheme`: `null` (customText), `"navigate"` (inputMode), `[]` (editorLines).
+
+Replace each call pattern:
+
+```ts
+// Old (5 args):
+renderSingleChoiceQuestion(question, CURSOR, SELECTED, noopTheme, 80);
+// New (8 args):
+renderSingleChoiceQuestion(
+  question,
+  CURSOR,
+  SELECTED,
+  null,
+  "navigate",
+  [],
+  noopTheme,
+  80,
+);
+```
+
+There are 6 existing calls to update (in the tests at approximate lines 26, 40, 52, 64, 76, 91). Update all of them.
+
+- [ ] **Step 3: Add sentinel rendering tests**
+
+In `tests/tui/render-question.test.ts`, add inside the `describe("renderSingleChoiceQuestion")` block:
+
+```ts
+it("renders 'Type something.' sentinel when allowOther is true", () => {
+  const q = { ...question, allowOther: true };
+  const lines = renderSingleChoiceQuestion(
+    q,
+    0,
+    null,
+    null,
+    "navigate",
+    [],
+    noopTheme,
+    80,
+  );
+  const text = lines.join("\n");
+  expect(text).toContain("3. Type something.");
+});
+
+it("does not render sentinel when allowOther is false", () => {
+  const lines = renderSingleChoiceQuestion(
+    question,
+    0,
+    null,
+    null,
+    "navigate",
+    [],
+    noopTheme,
+    80,
+  );
+  const text = lines.join("\n");
+  expect(text).not.toContain("Type something.");
+});
+
+it("renders custom text when set", () => {
+  const q = { ...question, allowOther: true };
+  const lines = renderSingleChoiceQuestion(
+    q,
+    0,
+    null,
+    "My custom answer",
+    "navigate",
+    [],
+    noopTheme,
+    80,
+  );
+  const text = lines.join("\n");
+  expect(text).toContain('"My custom answer"');
+});
+
+it("renders editor content in typing mode", () => {
+  const q = { ...question, allowOther: true };
+  const lines = renderSingleChoiceQuestion(
+    q,
+    q.options.length,
+    null,
+    null,
+    "typing",
+    ["hello"],
+    noopTheme,
+    80,
+  );
+  const text = lines.join("\n");
+  expect(text).toContain("hello");
+});
+```
+
+- [ ] **Step 4: Run render-question tests**
+
+Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && npx vitest run tests/tui/render-question.test.ts`
+Expected: PASS
+
+- [ ] **Step 5: Update `renderQuestionnaire` signature and body**
+
+In `src/tui/render.ts`, update the function signature to add `editorLines` after `questions`:
 
 ```ts
 export function renderQuestionnaire(
@@ -453,10 +962,10 @@ export function renderQuestionnaire(
   editorLines: string[],
   theme: RenderTheme,
   width: number,
-): string[];
+): string[] {
 ```
 
-In the single-choice case:
+Update the single-choice case to pass the new arguments:
 
 ```ts
 case "single-choice":
@@ -475,15 +984,17 @@ case "single-choice":
   break;
 ```
 
-Update the hint bar to show typing mode hints:
+Replace the hint bar section (from `// Hint bar` through `pushWrapped(lines, theme.fg("dim", hint), renderWidth);`):
 
 ```ts
+// Hint bar
 lines.push("");
 let hint: string;
 if (state.inputMode === "typing") {
   hint = "Enter submit | Esc cancel | Up/Down exit";
 } else if (state.activeTab === reviewTabIndex) {
-  hint = "Left/Right tabs | Enter submit | Space edit | Esc cancel";
+  hint =
+    "Left/Right tabs | Up/Down move | Space jump | Enter submit | Esc cancel";
 } else if (q?.type === "multi-choice") {
   hint = "Left/Right tabs | Up/Down move | Space toggle | Esc cancel";
 } else {
@@ -492,15 +1003,33 @@ if (state.inputMode === "typing") {
 pushWrapped(lines, theme.fg("dim", hint), renderWidth);
 ```
 
-- [ ] **Step 3: Update `questionnaire-ui.ts`**
+- [ ] **Step 6: Update existing `renderQuestionnaire` test calls**
 
-Reintroduce the Editor for typing mode:
+In `tests/tui/render.test.ts`, every call to `renderQuestionnaire` has 4 arguments. They all need `[]` (editorLines) inserted after `questions`:
+
+```ts
+// Old (4 args):
+renderQuestionnaire(state, questions, noopTheme, 80);
+// New (5 args):
+renderQuestionnaire(state, questions, [], noopTheme, 80);
+```
+
+There are 4 existing calls to update.
+
+- [ ] **Step 7: Run render tests**
+
+Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && npx vitest run tests/tui/render-question.test.ts tests/tui/render.test.ts`
+Expected: PASS
+
+- [ ] **Step 8: Update `questionnaire-ui.ts` with Editor integration**
+
+Replace the entire contents of `src/tui/questionnaire-ui.ts`:
 
 ```ts
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Editor, type EditorTheme } from "@earendil-works/pi-tui";
 import type { NormalizedQuestion, QuestionnaireResult } from "../core/types.ts";
-import { initState, reduce, buildResult, currentQuestion } from "./state.ts";
+import { initState, reduce, buildResult } from "./state.ts";
 import { mapInput } from "./input.ts";
 import { renderQuestionnaire } from "./render.ts";
 
@@ -544,7 +1073,7 @@ export async function runQuestionnaireUI(
       switch (result.type) {
         case "action":
           state = reduce(state, result.action, questions);
-          // Sync editor when entering typing mode
+          // Load existing custom text into editor when entering typing mode
           if (state.inputMode === "typing" && state.editingQuestionId) {
             editor.setText(state.customText.get(state.editingQuestionId) ?? "");
           }
@@ -579,27 +1108,16 @@ export async function runQuestionnaireUI(
 }
 ```
 
-- [ ] **Step 4: Update render tests**
-
-Add tests for sentinel row rendering in `tests/tui/render-question.test.ts`:
-
-- `it("renders 'Type something.' sentinel when allowOther is true")`
-- `it("does not render sentinel when allowOther is false")`
-- `it("renders custom text when set")`
-- `it("renders inline editor in typing mode")`
-
-Update `renderQuestionnaire` calls in `tests/tui/render.test.ts` to pass `editorLines`.
-
-- [ ] **Step 5: Run full check**
+- [ ] **Step 9: Run full check**
 
 Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && pnpm check`
-Expected: PASS
+Expected: PASS (lint + typecheck + tests all pass)
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add src/ tests/
-git commit -m "feat: add 'Type something.' sentinel to single-choice questions"
+git add src/tui/ tests/tui/
+git commit -m "feat: add 'Type something.' sentinel rendering and Editor integration"
 ```
 
 ---

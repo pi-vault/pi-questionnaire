@@ -21,6 +21,7 @@ const singleQ: NormalizedQuestion = {
     { value: "large", label: "Large" },
   ],
   recommendation: null,
+  allowOther: false,
 };
 
 const multiQ: NormalizedQuestion = {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { NormalizedQuestion } from "../../src/core/types.ts";
+import type {
+  NormalizedQuestion,
+  NormalizedSingleChoiceQuestion,
+} from "../../src/core/types.ts";
 import { initState } from "../../src/tui/state.ts";
 import { mapInput } from "../../src/tui/input.ts";
 
@@ -14,6 +17,7 @@ const questions: NormalizedQuestion[] = [
       { value: "large", label: "Large" },
     ],
     recommendation: null,
+    allowOther: false,
   },
   {
     type: "multi-choice",
@@ -27,6 +31,20 @@ const questions: NormalizedQuestion[] = [
     recommendation: [],
   },
 ];
+
+const singleWithOther: NormalizedSingleChoiceQuestion = {
+  type: "single-choice",
+  id: "scope",
+  header: "Scope",
+  prompt: "Pick scope",
+  options: [
+    { value: "small", label: "Small" },
+    { value: "large", label: "Large" },
+  ],
+  recommendation: null,
+  allowOther: true,
+};
+const questionsWithOther: NormalizedQuestion[] = [singleWithOther];
 
 describe("mapInput", () => {
   it("Esc returns finalize cancelled", () => {
@@ -203,5 +221,94 @@ describe("mapInput", () => {
     const state = initState(questions);
     const result = mapInput("x", state, questions);
     expect(result).toEqual({ type: "none" });
+  });
+
+  it("Esc in typing mode returns cancelTyping", () => {
+    const state = {
+      ...initState(questionsWithOther),
+      inputMode: "typing" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("\x1b", state, questionsWithOther);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({ type: "cancelTyping" });
+    }
+  });
+
+  it("Up in typing mode returns cancelTyping", () => {
+    const state = {
+      ...initState(questionsWithOther),
+      inputMode: "typing" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("\x1b[A", state, questionsWithOther);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({ type: "cancelTyping" });
+    }
+  });
+
+  it("Down in typing mode returns cancelTyping", () => {
+    const state = {
+      ...initState(questionsWithOther),
+      inputMode: "typing" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("\x1b[B", state, questionsWithOther);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({ type: "cancelTyping" });
+    }
+  });
+
+  it("forwards Enter to editor in typing mode", () => {
+    const state = {
+      ...initState(questionsWithOther),
+      inputMode: "typing" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("\r", state, questionsWithOther);
+    expect(result).toEqual({ type: "forward-to-editor" });
+  });
+
+  it("forwards character keys to editor in typing mode", () => {
+    const state = {
+      ...initState(questionsWithOther),
+      inputMode: "typing" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("a", state, questionsWithOther);
+    expect(result).toEqual({ type: "forward-to-editor" });
+  });
+
+  it("Space on sentinel returns enterTyping", () => {
+    const state = {
+      ...initState(questionsWithOther),
+      optionCursor: 2, // sentinel position (2 options)
+    };
+    const result = mapInput(" ", state, questionsWithOther);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({
+        type: "enterTyping",
+        questionId: "scope",
+      });
+    }
+  });
+
+  it("Enter on sentinel returns enterTyping", () => {
+    const state = {
+      ...initState(questionsWithOther),
+      optionCursor: 2, // sentinel position (2 options)
+    };
+    const result = mapInput("\r", state, questionsWithOther);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({
+        type: "enterTyping",
+        questionId: "scope",
+      });
+    }
   });
 });

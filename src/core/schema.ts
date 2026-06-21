@@ -32,6 +32,12 @@ export const SingleChoiceQuestionSchema = Type.Object({
   recommendation: Type.Optional(
     Type.String({ description: "Value of the recommended option" }),
   ),
+  allowOther: Type.Optional(
+    Type.Boolean({
+      description:
+        'Append a "Type something." option for custom text input (default: true)',
+    }),
+  ),
 });
 
 export const MultiChoiceQuestionSchema = Type.Object({

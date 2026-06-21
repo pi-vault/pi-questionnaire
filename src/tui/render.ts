@@ -17,6 +17,7 @@ import { pushWrapped } from "./helpers.ts";
 export function renderQuestionnaire(
   state: QuestionnaireState,
   questions: NormalizedQuestion[],
+  editorLines: string[],
   theme: RenderTheme,
   width: number,
 ): string[] {
@@ -57,6 +58,9 @@ export function renderQuestionnaire(
             q,
             state.optionCursor,
             getSelectedValue(state, q.id),
+            state.customText.get(q.id) ?? null,
+            state.inputMode,
+            editorLines,
             theme,
             renderWidth,
           ),
@@ -80,12 +84,17 @@ export function renderQuestionnaire(
 
   // Hint bar
   lines.push("");
-  const hint =
-    state.activeTab === reviewTabIndex
-      ? "Left/Right tabs | Up/Down move | Space jump | Enter submit | Esc cancel"
-      : q?.type === "multi-choice"
-        ? "Left/Right tabs | Up/Down move | Space toggle | Esc cancel"
-        : "Left/Right tabs | Up/Down move | Space/Enter select | Esc cancel";
+  let hint: string;
+  if (state.inputMode === "typing") {
+    hint = "Enter submit | Esc cancel | Up/Down exit";
+  } else if (state.activeTab === reviewTabIndex) {
+    hint =
+      "Left/Right tabs | Up/Down move | Space jump | Enter submit | Esc cancel";
+  } else if (q?.type === "multi-choice") {
+    hint = "Left/Right tabs | Up/Down move | Space toggle | Esc cancel";
+  } else {
+    hint = "Left/Right tabs | Up/Down move | Space/Enter select | Esc cancel";
+  }
   pushWrapped(lines, theme.fg("dim", hint), renderWidth);
 
   lines.push(theme.fg("accent", "\u2500".repeat(renderWidth)));
