@@ -1,18 +1,13 @@
 import type { NormalizedAnswer, NormalizedQuestion } from "../core/types.ts";
 import { formatAnswerForRender } from "../core/format.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
-
-interface ReviewTheme {
-  fg(color: string, text: string): string;
-  bg(color: string, text: string): string;
-  bold(text: string): string;
-}
+import type { RenderTheme } from "./theme.ts";
 
 export function renderReviewScreen(
   questions: NormalizedQuestion[],
   answers: Map<string, NormalizedAnswer>,
   cursor: number,
-  theme: ReviewTheme,
+  theme: RenderTheme,
   width: number,
 ): string[] {
   const lines: string[] = [];

@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedQuestion } from "../../src/core/types.ts";
 import { renderTabBar } from "../../src/tui/render-tabs.ts";
-
-const noopTheme = {
-  fg: (_color: string, text: string) => text,
-  bg: (_color: string, text: string) => `[${text}]`,
-  bold: (text: string) => text,
-};
+import { noopTheme } from "../helpers/theme.ts";
 
 const questions: NormalizedQuestion[] = [
   {
@@ -51,7 +46,8 @@ describe("renderTabBar", () => {
 
   it("highlights active tab with bg wrapper", () => {
     const answeredIds = new Set<string>();
-    const lines = renderTabBar(questions, 0, answeredIds, noopTheme, 80);
+    const bgTheme = { ...noopTheme, bg: (_c: string, t: string) => `[${t}]` };
+    const lines = renderTabBar(questions, 0, answeredIds, bgTheme, 80);
     const joined = lines.join("");
     // Active tab (index 0 = Scope) gets bg wrap: [text]
     expect(joined).toContain("[ \u25A1 Scope ]");
