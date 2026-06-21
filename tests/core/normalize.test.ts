@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { QuestionInput } from "../../src/core/types.ts";
+import type { QuestionInput } from "../../src/core/schema.ts";
 import { normalizeQuestions } from "../../src/core/normalize.ts";
 
 describe("normalizeQuestions", () => {

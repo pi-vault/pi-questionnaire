@@ -1,10 +1,9 @@
+import type { QuestionInput, QuestionOption } from "./schema.ts";
 import type {
   NormalizedMultiChoiceQuestion,
   NormalizedQuestion,
   NormalizedSingleChoiceQuestion,
   NormalizedTextQuestion,
-  QuestionInput,
-  QuestionOption,
 } from "./types.ts";
 
 function normalizeOptions(options: QuestionOption[]): QuestionOption[] {
