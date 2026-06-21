@@ -4,18 +4,13 @@ import type {
   NormalizedTextQuestion,
 } from "../core/types.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
-
-interface QuestionTheme {
-  fg(color: string, text: string): string;
-  bg(color: string, text: string): string;
-  bold(text: string): string;
-}
+import type { RenderTheme } from "./theme.ts";
 
 export function renderSingleChoiceQuestion(
   question: NormalizedSingleChoiceQuestion,
   cursor: number,
   selectedValue: string | null,
-  theme: QuestionTheme,
+  theme: RenderTheme,
   width: number,
 ): string[] {
   const lines: string[] = [];
@@ -62,7 +57,7 @@ export function renderMultiChoiceQuestion(
   question: NormalizedMultiChoiceQuestion,
   cursor: number,
   checked: Set<string>,
-  theme: QuestionTheme,
+  theme: RenderTheme,
   width: number,
 ): string[] {
   const lines: string[] = [];
@@ -99,7 +94,7 @@ export function renderMultiChoiceQuestion(
 export function renderTextQuestion(
   question: NormalizedTextQuestion,
   editorLines: string[],
-  theme: QuestionTheme,
+  theme: RenderTheme,
   width: number,
 ): string[] {
   const lines: string[] = [];

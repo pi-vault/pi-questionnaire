@@ -9,12 +9,7 @@ import {
   renderMultiChoiceQuestion,
   renderTextQuestion,
 } from "../../src/tui/render-question.ts";
-
-const noopTheme = {
-  fg: (_color: string, text: string) => text,
-  bg: (_color: string, text: string) => text,
-  bold: (text: string) => text,
-};
+import { noopTheme } from "../helpers/theme.ts";
 
 describe("renderSingleChoiceQuestion", () => {
   const question: NormalizedSingleChoiceQuestion = {
