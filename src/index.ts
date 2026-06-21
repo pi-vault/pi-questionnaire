@@ -16,7 +16,7 @@ function errorResult(error: string): {
 } {
   return {
     content: [{ type: "text", text: `Error: ${error}` }],
-    details: { questions: [], answers: [], cancelled: true, error },
+    details: { questions: [], responses: [], cancelled: true, error },
     isError: true,
   };
 }
@@ -26,13 +26,12 @@ export default function createExtension(pi: ExtensionAPI): void {
     name: "questionnaire",
     label: "Questionnaire",
     description:
-      "Ask the user 1-10 structured questions. Supports single-choice, multi-choice, and free-text questions. Use for clarifying requirements, getting preferences, or confirming decisions.",
+      "Ask the user 1-10 structured questions. Supports single-choice and multi-choice questions. Use for clarifying requirements, getting preferences, or confirming decisions.",
     promptSnippet:
       "Use this tool to collect structured user decisions before proceeding with implementation or planning.",
     promptGuidelines: [
       "Batch related clarification questions into one questionnaire call.",
       "Prefer this tool over guessing when requirements or preferences are unclear.",
-      "Use choice/multi-choice when options are enumerable; use text for open-ended input.",
       "Place the recommended option's value in the recommendation field instead of modifying the label.",
       "Keep questions to 1-5 per call unless a decision genuinely requires more context.",
     ],
@@ -83,10 +82,10 @@ export default function createExtension(pi: ExtensionAPI): void {
         return new Text(theme.fg("warning", "Cancelled"), 0, 0);
       }
 
-      const lines = details.answers.map((a) => {
-        const q = details.questions.find((q) => q.id === a.questionId);
-        if (!q) return `${theme.fg("success", "\u2713 ")}${a.questionId}`;
-        const display = formatAnswerForRender(q, a);
+      const lines = details.responses.map((r) => {
+        const q = details.questions.find((q) => q.id === r.questionId);
+        if (!q) return `${theme.fg("success", "\u2713 ")}${r.questionId}`;
+        const display = formatAnswerForRender(q, r.selection);
         return `${theme.fg("success", "\u2713 ")}${theme.fg("accent", `${q.header}:`)} ${display}`;
       });
 

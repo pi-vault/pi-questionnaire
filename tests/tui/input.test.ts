@@ -26,17 +26,10 @@ const questions: NormalizedQuestion[] = [
     ],
     recommendation: [],
   },
-  {
-    type: "text",
-    id: "notes",
-    header: "Notes",
-    prompt: "Any notes?",
-    recommendation: null,
-  },
 ];
 
 describe("mapInput", () => {
-  it("Esc on non-text question returns finalize cancelled", () => {
+  it("Esc returns finalize cancelled", () => {
     const state = initState(questions);
     const result = mapInput("\x1b", state, questions);
     expect(result).toEqual({ type: "finalize", cancelled: true });
@@ -81,35 +74,12 @@ describe("mapInput", () => {
     }
   });
 
-  it("text question forwards non-nav keys to editor", () => {
-    const state = { ...initState(questions), activeTab: 2 };
-    const result = mapInput("a", state, questions);
-    expect(result).toEqual({ type: "forward-to-editor" });
-  });
-
-  it("Esc on text question returns finalize cancelled", () => {
-    const state = { ...initState(questions), activeTab: 2 };
-    const result = mapInput("\x1b", state, questions);
-    expect(result).toEqual({ type: "finalize", cancelled: true });
-  });
-
   it("Enter on review with all answered returns finalize submitted", () => {
     const state = { ...initState(questions), activeTab: questions.length };
-    state.answers.set("scope", {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
     state.answers.set("features", {
-      type: "multi-choice",
-      questionId: "features",
+      kind: "options",
       selected: [{ value: "auth", label: "Auth" }],
-    });
-    state.answers.set("notes", {
-      type: "text",
-      questionId: "notes",
-      value: "ok",
     });
     const result = mapInput("\r", state, questions);
     expect(result).toEqual({ type: "finalize", cancelled: false });
@@ -196,15 +166,6 @@ describe("mapInput", () => {
     expect(result).toEqual({ type: "none" });
   });
 
-  it("Tab on text question still switches tabs", () => {
-    const state = { ...initState(questions), activeTab: 2 };
-    const result = mapInput("\t", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action.type).toBe("switchTab");
-    }
-  });
-
   it("Shift+Tab returns switchTab to previous", () => {
     const state = { ...initState(questions), activeTab: 1 };
     const result = mapInput("\x1b[Z", state, questions);
@@ -254,18 +215,6 @@ describe("mapInput", () => {
         tab: questions.length - 1,
       });
     }
-  });
-
-  it("Left arrow on text question forwards to editor", () => {
-    const state = { ...initState(questions), activeTab: 2 };
-    const result = mapInput("\x1b[D", state, questions);
-    expect(result).toEqual({ type: "forward-to-editor" });
-  });
-
-  it("Right arrow on text question forwards to editor", () => {
-    const state = { ...initState(questions), activeTab: 2 };
-    const result = mapInput("\x1b[C", state, questions);
-    expect(result).toEqual({ type: "forward-to-editor" });
   });
 
   it("unrecognized key on single-choice returns none", () => {

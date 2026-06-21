@@ -1,11 +1,11 @@
-import type { NormalizedAnswer, NormalizedQuestion } from "../core/types.ts";
+import type { NormalizedQuestion, QuestionSelection } from "../core/types.ts";
 import { formatAnswerForRender } from "../core/format.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
 import type { RenderTheme } from "./theme.ts";
 
 export function renderReviewScreen(
   questions: NormalizedQuestion[],
-  answers: Map<string, NormalizedAnswer>,
+  answers: Map<string, QuestionSelection>,
   cursor: number,
   theme: RenderTheme,
   width: number,
@@ -18,14 +18,16 @@ export function renderReviewScreen(
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
-    const answer = answers.get(q.id);
+    const selection = answers.get(q.id);
     const isCursor = i === cursor;
     const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-    const marker = answer
+    const marker = selection
       ? theme.fg("success", "\u25A0")
       : theme.fg("warning", "\u25A1");
-    const value = answer ? formatAnswerForRender(q, answer) : "(unanswered)";
-    const valueColor = answer ? "text" : "muted";
+    const value = selection
+      ? formatAnswerForRender(q, selection)
+      : "(unanswered)";
+    const valueColor = selection ? "text" : "muted";
 
     pushWrappedWithPrefix(
       lines,

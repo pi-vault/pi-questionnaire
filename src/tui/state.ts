@@ -1,6 +1,7 @@
 import type {
-  NormalizedAnswer,
   NormalizedQuestion,
+  QuestionResponse,
+  QuestionSelection,
   QuestionnaireResult,
 } from "../core/types.ts";
 
@@ -8,9 +9,8 @@ export interface QuestionnaireState {
   activeTab: number;
   optionCursor: number;
   reviewCursor: number;
-  answers: Map<string, NormalizedAnswer>;
+  answers: Map<string, QuestionSelection>;
   multiChecked: Map<string, Set<string>>;
-  textValues: Map<string, string>;
 }
 
 export type Action =
@@ -18,19 +18,14 @@ export type Action =
   | { type: "moveCursor"; direction: "up" | "down" }
   | { type: "selectOption"; questionId: string; value: string; label: string }
   | { type: "toggleCheckbox"; questionId: string; value: string }
-  | { type: "submitText"; questionId: string; value: string }
   | { type: "resetCursors" };
 
 export function initState(questions: NormalizedQuestion[]): QuestionnaireState {
   const multiChecked = new Map<string, Set<string>>();
-  const textValues = new Map<string, string>();
 
   for (const q of questions) {
     if (q.type === "multi-choice") {
       multiChecked.set(q.id, new Set(q.recommendation));
-    }
-    if (q.type === "text" && q.recommendation) {
-      textValues.set(q.id, q.recommendation);
     }
   }
 
@@ -40,7 +35,6 @@ export function initState(questions: NormalizedQuestion[]): QuestionnaireState {
     reviewCursor: 0,
     answers: new Map(),
     multiChecked,
-    textValues,
   };
 }
 
@@ -81,8 +75,8 @@ export function getSelectedValue(
   state: QuestionnaireState,
   questionId: string,
 ): string | null {
-  const answer = state.answers.get(questionId);
-  if (answer?.type === "single-choice") return answer.value;
+  const sel = state.answers.get(questionId);
+  if (sel?.kind === "option") return sel.value;
   return null;
 }
 
@@ -95,7 +89,6 @@ function cloneState(state: QuestionnaireState): QuestionnaireState {
     multiChecked: new Map(
       [...state.multiChecked].map(([k, v]) => [k, new Set(v)]),
     ),
-    textValues: new Map(state.textValues),
   };
 }
 
@@ -127,20 +120,17 @@ export function reduce(
         }
         return next;
       }
-      if (q.type === "single-choice" || q.type === "multi-choice") {
-        const optCount = q.options.length;
-        if (action.direction === "up") {
-          next.optionCursor = Math.max(0, next.optionCursor - 1);
-        } else {
-          next.optionCursor = Math.min(optCount - 1, next.optionCursor + 1);
-        }
+      const optCount = q.options.length;
+      if (action.direction === "up") {
+        next.optionCursor = Math.max(0, next.optionCursor - 1);
+      } else {
+        next.optionCursor = Math.min(optCount - 1, next.optionCursor + 1);
       }
       return next;
     }
     case "selectOption": {
       next.answers.set(action.questionId, {
-        type: "single-choice",
-        questionId: action.questionId,
+        kind: "option",
         value: action.value,
         label: action.label,
       });
@@ -165,24 +155,11 @@ export function reduce(
           .filter((o) => checked.has(o.value))
           .map((o) => ({ value: o.value, label: o.label }));
         if (selected.length > 0) {
-          next.answers.set(action.questionId, {
-            type: "multi-choice",
-            questionId: action.questionId,
-            selected,
-          });
+          next.answers.set(action.questionId, { kind: "options", selected });
         } else {
           next.answers.delete(action.questionId);
         }
       }
-      return next;
-    }
-    case "submitText": {
-      next.textValues.set(action.questionId, action.value);
-      next.answers.set(action.questionId, {
-        type: "text",
-        questionId: action.questionId,
-        value: action.value,
-      });
       return next;
     }
     case "resetCursors": {
@@ -198,11 +175,12 @@ export function buildResult(
   questions: NormalizedQuestion[],
   cancelled: boolean,
 ): QuestionnaireResult {
-  return {
-    questions,
-    answers: questions
-      .map((q) => state.answers.get(q.id))
-      .filter((a): a is NormalizedAnswer => a !== undefined),
-    cancelled,
-  };
+  const responses: QuestionResponse[] = questions
+    .map((q) => {
+      const selection = state.answers.get(q.id);
+      if (!selection) return undefined;
+      return { questionId: q.id, selection };
+    })
+    .filter((r): r is QuestionResponse => r !== undefined);
+  return { questions, responses, cancelled };
 }

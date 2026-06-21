@@ -1,7 +1,6 @@
 import type {
   NormalizedSingleChoiceQuestion,
   NormalizedMultiChoiceQuestion,
-  NormalizedTextQuestion,
 } from "../core/types.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
 import type { RenderTheme } from "./theme.ts";
@@ -91,27 +90,4 @@ export function renderMultiChoiceQuestion(
   return lines;
 }
 
-export function renderTextQuestion(
-  question: NormalizedTextQuestion,
-  editorLines: string[],
-  theme: RenderTheme,
-  width: number,
-): string[] {
-  const lines: string[] = [];
 
-  pushWrapped(lines, theme.fg("text", question.prompt), width);
-  lines.push("");
-
-  for (const line of editorLines) {
-    lines.push(` ${line}`);
-  }
-
-  lines.push("");
-  pushWrapped(
-    lines,
-    theme.fg("dim", "Enter submit | Tab/Shift+Tab navigate tabs"),
-    width,
-  );
-
-  return lines;
-}

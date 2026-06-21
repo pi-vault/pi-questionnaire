@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type {
-  MultiChoiceAnswer,
-  NormalizedQuestion,
-  QuestionnaireResult,
-  SingleChoiceAnswer,
-  TextAnswer,
-} from "../../src/core/types.ts";
 import {
   formatAnswerForRender,
   formatContentSummary,
   formatModelLine,
+  formatNoteLine,
 } from "../../src/core/format.ts";
+import type {
+  NormalizedQuestion,
+  QuestionResponse,
+  QuestionnaireResult,
+} from "../../src/core/types.ts";
 
-const choiceQ: NormalizedQuestion = {
+const singleQ: NormalizedQuestion = {
   type: "single-choice",
   id: "scope",
   header: "Scope",
@@ -28,72 +27,89 @@ const multiQ: NormalizedQuestion = {
   type: "multi-choice",
   id: "features",
   header: "Features",
-  prompt: "Pick features",
+  prompt: "Select features",
   options: [
     { value: "auth", label: "Auth" },
-    { value: "log", label: "Logging" },
-    { value: "cache", label: "Caching" },
+    { value: "logging", label: "Logging" },
+    { value: "cache", label: "Cache" },
   ],
   recommendation: [],
 };
 
-const textQ: NormalizedQuestion = {
-  type: "text",
-  id: "notes",
-  header: "Notes",
-  prompt: "Any notes?",
-  recommendation: null,
-};
-
 describe("formatModelLine", () => {
-  it("formats choice answer", () => {
-    const answer: SingleChoiceAnswer = {
-      type: "single-choice",
+  it("formats option selection", () => {
+    const response: QuestionResponse = {
       questionId: "scope",
-      value: "small",
-      label: "Small",
+      selection: { kind: "option", value: "small", label: "Small" },
     };
-    expect(formatModelLine(choiceQ, answer)).toBe(
+    expect(formatModelLine(singleQ, response)).toBe(
       "Scope: user selected: 1. Small",
     );
   });
 
-  it("formats multi-choice answer", () => {
-    const answer: MultiChoiceAnswer = {
-      type: "multi-choice",
+  it("formats multi-choice options", () => {
+    const response: QuestionResponse = {
       questionId: "features",
-      selected: [
-        { value: "auth", label: "Auth" },
-        { value: "cache", label: "Caching" },
-      ],
+      selection: {
+        kind: "options",
+        selected: [
+          { value: "auth", label: "Auth" },
+          { value: "logging", label: "Logging" },
+        ],
+      },
     };
-    expect(formatModelLine(multiQ, answer)).toBe(
-      "Features: user selected: 1. Auth, 3. Caching",
+    expect(formatModelLine(multiQ, response)).toBe(
+      "Features: user selected: 1. Auth, 2. Logging",
     );
   });
 
-  it("formats text answer", () => {
-    const answer: TextAnswer = {
-      type: "text",
-      questionId: "notes",
-      value: "Keep it simple",
+  it("formats custom text", () => {
+    const response: QuestionResponse = {
+      questionId: "scope",
+      selection: { kind: "custom", value: "micro-service only" },
     };
-    expect(formatModelLine(textQ, answer)).toBe(
-      'Notes: user wrote: "Keep it simple"',
+    expect(formatModelLine(singleQ, response)).toBe(
+      'Scope: user wrote: "micro-service only"',
     );
   });
 
-  it("formats empty text answer", () => {
-    const answer: TextAnswer = { type: "text", questionId: "notes", value: "" };
-    expect(formatModelLine(textQ, answer)).toBe("Notes: (empty response)");
+  it("formats chat signal", () => {
+    const response: QuestionResponse = {
+      questionId: "scope",
+      selection: { kind: "chat" },
+    };
+    expect(formatModelLine(singleQ, response)).toBe(
+      "Scope: user wants to discuss this question",
+    );
+  });
+});
+
+describe("formatNoteLine", () => {
+  it("returns null when no notes", () => {
+    const response: QuestionResponse = {
+      questionId: "scope",
+      selection: { kind: "option", value: "small", label: "Small" },
+    };
+    expect(formatNoteLine(singleQ, response)).toBeNull();
+  });
+
+  it("formats note when present", () => {
+    const response: QuestionResponse = {
+      questionId: "scope",
+      selection: { kind: "option", value: "small", label: "Small" },
+      notes: "prefer minimal scope",
+    };
+    expect(formatNoteLine(singleQ, response)).toBe(
+      'Scope note: "prefer minimal scope"',
+    );
   });
 });
 
 describe("formatContentSummary", () => {
-  it("returns cancelled message when cancelled", () => {
+  it("formats cancelled result", () => {
     const result: QuestionnaireResult = {
-      questions: [],
-      answers: [],
+      questions: [singleQ],
+      responses: [],
       cancelled: true,
     };
     expect(formatContentSummary(result)).toBe(
@@ -101,52 +117,62 @@ describe("formatContentSummary", () => {
     );
   });
 
-  it("joins answer lines for submitted result", () => {
+  it("formats responses with notes", () => {
     const result: QuestionnaireResult = {
-      questions: [choiceQ, textQ],
-      answers: [
+      questions: [singleQ, multiQ],
+      responses: [
         {
-          type: "single-choice",
           questionId: "scope",
-          value: "small",
-          label: "Small",
+          selection: { kind: "option", value: "small", label: "Small" },
+          notes: "keep it simple",
         },
-        { type: "text", questionId: "notes", value: "ok" },
+        {
+          questionId: "features",
+          selection: {
+            kind: "options",
+            selected: [{ value: "auth", label: "Auth" }],
+          },
+        },
       ],
       cancelled: false,
     };
-    expect(formatContentSummary(result)).toBe(
-      'Scope: user selected: 1. Small\nNotes: user wrote: "ok"',
-    );
+    const summary = formatContentSummary(result);
+    expect(summary).toContain("Scope: user selected: 1. Small");
+    expect(summary).toContain('Scope note: "keep it simple"');
+    expect(summary).toContain("Features: user selected: 1. Auth");
   });
 });
 
 describe("formatAnswerForRender", () => {
-  it("formats choice for display", () => {
-    const answer: SingleChoiceAnswer = {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    };
-    expect(formatAnswerForRender(choiceQ, answer)).toBe("1. Small");
+  it("formats option for review", () => {
+    expect(
+      formatAnswerForRender(singleQ, {
+        kind: "option",
+        value: "small",
+        label: "Small",
+      }),
+    ).toBe("1. Small");
   });
 
-  it("formats multi-choice for display", () => {
-    const answer: MultiChoiceAnswer = {
-      type: "multi-choice",
-      questionId: "features",
-      selected: [{ value: "auth", label: "Auth" }],
-    };
-    expect(formatAnswerForRender(multiQ, answer)).toBe("1. Auth");
+  it("formats custom for review", () => {
+    expect(
+      formatAnswerForRender(singleQ, { kind: "custom", value: "micro" }),
+    ).toBe('(wrote) "micro"');
   });
 
-  it("formats text for display", () => {
-    const answer: TextAnswer = {
-      type: "text",
-      questionId: "notes",
-      value: "hello",
-    };
-    expect(formatAnswerForRender(textQ, answer)).toBe("(wrote) hello");
+  it("formats chat for review", () => {
+    expect(formatAnswerForRender(singleQ, { kind: "chat" })).toBe("chat");
+  });
+
+  it("formats multi-options for review", () => {
+    expect(
+      formatAnswerForRender(multiQ, {
+        kind: "options",
+        selected: [
+          { value: "auth", label: "Auth" },
+          { value: "cache", label: "Cache" },
+        ],
+      }),
+    ).toBe("1. Auth, 3. Cache");
   });
 });

@@ -10,7 +10,6 @@ import { renderTabBar } from "./render-tabs.ts";
 import {
   renderSingleChoiceQuestion,
   renderMultiChoiceQuestion,
-  renderTextQuestion,
 } from "./render-question.ts";
 import { renderReviewScreen } from "./render-review.ts";
 import { pushWrapped } from "./helpers.ts";
@@ -18,7 +17,6 @@ import { pushWrapped } from "./helpers.ts";
 export function renderQuestionnaire(
   state: QuestionnaireState,
   questions: NormalizedQuestion[],
-  editorLines: string[],
   theme: RenderTheme,
   width: number,
 ): string[] {
@@ -77,23 +75,18 @@ export function renderQuestionnaire(
         );
         break;
       }
-      case "text":
-        lines.push(...renderTextQuestion(q, editorLines, theme, renderWidth));
-        break;
     }
   }
 
-  // Hint bar (non-text questions only)
-  if (q?.type !== "text") {
-    lines.push("");
-    const hint =
-      state.activeTab === reviewTabIndex
-        ? "Tab navigate | Enter submit | Space edit | Esc cancel"
-        : q?.type === "multi-choice"
-          ? "Tab navigate | Up/Down move | Space toggle | Esc cancel"
-          : "Tab navigate | Up/Down move | Space/Enter select | Esc cancel";
-    pushWrapped(lines, theme.fg("dim", hint), renderWidth);
-  }
+  // Hint bar
+  lines.push("");
+  const hint =
+    state.activeTab === reviewTabIndex
+      ? "Tab navigate | Up/Down move | Space jump | Enter submit | Esc cancel"
+      : q?.type === "multi-choice"
+        ? "Tab navigate | Up/Down move | Space toggle | Esc cancel"
+        : "Tab navigate | Up/Down move | Space/Enter select | Esc cancel";
+  pushWrapped(lines, theme.fg("dim", hint), renderWidth);
 
   lines.push(theme.fg("accent", "\u2500".repeat(renderWidth)));
 

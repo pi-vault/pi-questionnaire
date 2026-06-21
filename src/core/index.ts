@@ -9,20 +9,16 @@ export type {
   QuestionOption,
   SingleChoiceQuestionInput,
   MultiChoiceQuestionInput,
-  TextQuestionInput,
   QuestionInput,
 } from "./schema.ts";
 export type {
-  MultiChoiceAnswer,
-  NormalizedAnswer,
   NormalizedMultiChoiceQuestion,
   NormalizedQuestion,
   NormalizedSingleChoiceQuestion,
-  NormalizedTextQuestion,
   QuestionnaireResult,
+  QuestionResponse,
+  QuestionSelection,
   SelectedOption,
-  SingleChoiceAnswer,
-  TextAnswer,
 } from "./types.ts";
 export { processQuestions } from "./process.ts";
 export type { ProcessResult } from "./process.ts";
@@ -30,4 +26,5 @@ export {
   formatContentSummary,
   formatAnswerForRender,
   formatModelLine,
+  formatNoteLine,
 } from "./format.ts";
