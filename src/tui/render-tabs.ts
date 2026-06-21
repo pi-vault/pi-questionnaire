@@ -1,9 +1,9 @@
 import type { NormalizedQuestion } from "../core/types.ts";
 
 interface TabBarTheme {
-  fg: (color: string, text: string) => string;
-  bg: (color: string, text: string) => string;
-  bold: (text: string) => string;
+  fg(color: string, text: string): string;
+  bg(color: string, text: string): string;
+  bold(text: string): string;
 }
 
 export function renderTabBar(

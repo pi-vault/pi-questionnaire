@@ -6,9 +6,9 @@ import type {
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
 
 interface QuestionTheme {
-  fg: (color: string, text: string) => string;
-  bg: (color: string, text: string) => string;
-  bold: (text: string) => string;
+  fg(color: string, text: string): string;
+  bg(color: string, text: string): string;
+  bold(text: string): string;
 }
 
 export function renderSingleChoiceQuestion(
