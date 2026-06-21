@@ -1,6 +1,13 @@
 import { Type } from "typebox";
+import type { Static } from "typebox";
 
-const QuestionOptionSchema = Type.Object({
+// Constraint constants — single source of truth
+export const MIN_QUESTIONS = 1;
+export const MAX_QUESTIONS = 10;
+export const MIN_OPTIONS = 2;
+export const MAX_OPTIONS = 12;
+
+export const QuestionOptionSchema = Type.Object({
   value: Type.String({
     description: "Stable value returned when this option is selected",
   }),
@@ -10,7 +17,7 @@ const QuestionOptionSchema = Type.Object({
   ),
 });
 
-const SingleChoiceQuestionSchema = Type.Object({
+export const SingleChoiceQuestionSchema = Type.Object({
   type: Type.Literal("single-choice"),
   id: Type.String({ description: "Unique question identifier" }),
   header: Type.String({
@@ -18,16 +25,16 @@ const SingleChoiceQuestionSchema = Type.Object({
   }),
   prompt: Type.String({ description: "Full question text shown to the user" }),
   options: Type.Array(QuestionOptionSchema, {
-    minItems: 2,
-    maxItems: 12,
-    description: "Available options (2-12)",
+    minItems: MIN_OPTIONS,
+    maxItems: MAX_OPTIONS,
+    description: `Available options (${MIN_OPTIONS}-${MAX_OPTIONS})`,
   }),
   recommendation: Type.Optional(
     Type.String({ description: "Value of the recommended option" }),
   ),
 });
 
-const MultiChoiceQuestionSchema = Type.Object({
+export const MultiChoiceQuestionSchema = Type.Object({
   type: Type.Literal("multi-choice"),
   id: Type.String({ description: "Unique question identifier" }),
   header: Type.String({
@@ -35,16 +42,16 @@ const MultiChoiceQuestionSchema = Type.Object({
   }),
   prompt: Type.String({ description: "Full question text shown to the user" }),
   options: Type.Array(QuestionOptionSchema, {
-    minItems: 2,
-    maxItems: 12,
-    description: "Available options (2-12)",
+    minItems: MIN_OPTIONS,
+    maxItems: MAX_OPTIONS,
+    description: `Available options (${MIN_OPTIONS}-${MAX_OPTIONS})`,
   }),
   recommendation: Type.Optional(
     Type.Array(Type.String(), { description: "Values of recommended options" }),
   ),
 });
 
-const TextQuestionSchema = Type.Object({
+export const TextQuestionSchema = Type.Object({
   type: Type.Literal("text"),
   id: Type.String({ description: "Unique question identifier" }),
   header: Type.String({
@@ -64,8 +71,17 @@ const QuestionSchema = Type.Union([
 
 export const QuestionnaireParamsSchema = Type.Object({
   questions: Type.Array(QuestionSchema, {
-    minItems: 1,
-    maxItems: 10,
-    description: "1-10 questions to ask the user",
+    minItems: MIN_QUESTIONS,
+    maxItems: MAX_QUESTIONS,
+    description: `${MIN_QUESTIONS}-${MAX_QUESTIONS} questions to ask the user`,
   }),
 });
+
+// Static type aliases — derived from schemas
+export type QuestionOption = Static<typeof QuestionOptionSchema>;
+export type SingleChoiceQuestionInput = Static<
+  typeof SingleChoiceQuestionSchema
+>;
+export type MultiChoiceQuestionInput = Static<typeof MultiChoiceQuestionSchema>;
+export type TextQuestionInput = Static<typeof TextQuestionSchema>;
+export type QuestionInput = Static<typeof QuestionSchema>;
