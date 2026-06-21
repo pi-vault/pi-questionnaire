@@ -1,6 +1,7 @@
 import type {
   NormalizedAnswer,
   NormalizedQuestion,
+  QuestionnaireResult,
 } from "../core/types.ts";
 
 export interface QuestionnaireState {
@@ -196,7 +197,7 @@ export function buildResult(
   state: QuestionnaireState,
   questions: NormalizedQuestion[],
   cancelled: boolean,
-) {
+): QuestionnaireResult {
   return {
     questions,
     answers: questions

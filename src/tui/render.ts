@@ -25,6 +25,7 @@ export function renderQuestionnaire(
   const lines: string[] = [];
   const renderWidth = Math.max(1, width);
   const reviewTabIndex = questions.length;
+  const q = currentQuestion(state, questions);
 
   lines.push(theme.fg("accent", "\u2500".repeat(renderWidth)));
 
@@ -50,43 +51,39 @@ export function renderQuestionnaire(
         renderWidth,
       ),
     );
-  } else {
-    const q = currentQuestion(state, questions);
-    if (q) {
-      switch (q.type) {
-        case "single-choice":
-          lines.push(
-            ...renderSingleChoiceQuestion(
-              q,
-              state.optionCursor,
-              getSelectedValue(state, q.id),
-              theme,
-              renderWidth,
-            ),
-          );
-          break;
-        case "multi-choice": {
-          const checked = state.multiChecked.get(q.id) ?? new Set();
-          lines.push(
-            ...renderMultiChoiceQuestion(
-              q,
-              state.optionCursor,
-              checked,
-              theme,
-              renderWidth,
-            ),
-          );
-          break;
-        }
-        case "text":
-          lines.push(...renderTextQuestion(q, editorLines, theme, renderWidth));
-          break;
+  } else if (q) {
+    switch (q.type) {
+      case "single-choice":
+        lines.push(
+          ...renderSingleChoiceQuestion(
+            q,
+            state.optionCursor,
+            getSelectedValue(state, q.id),
+            theme,
+            renderWidth,
+          ),
+        );
+        break;
+      case "multi-choice": {
+        const checked = state.multiChecked.get(q.id) ?? new Set();
+        lines.push(
+          ...renderMultiChoiceQuestion(
+            q,
+            state.optionCursor,
+            checked,
+            theme,
+            renderWidth,
+          ),
+        );
+        break;
       }
+      case "text":
+        lines.push(...renderTextQuestion(q, editorLines, theme, renderWidth));
+        break;
     }
   }
 
   // Hint bar (non-text questions only)
-  const q = currentQuestion(state, questions);
   if (q?.type !== "text") {
     lines.push("");
     const hint =
