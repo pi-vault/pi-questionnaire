@@ -6,9 +6,11 @@ import {
   answeredIds,
   buildResult,
   currentQuestion,
+  cursorTarget,
   getSelectedValue,
   initState,
   reduce,
+  visibleRowCount,
 } from "../../src/tui/state.ts";
 
 const questions: NormalizedQuestion[] = [
@@ -37,6 +39,19 @@ const questions: NormalizedQuestion[] = [
   },
 ];
 
+const singleWithOther: NormalizedQuestion = {
+  type: "single-choice",
+  id: "scope-other",
+  header: "Scope",
+  prompt: "Pick scope",
+  options: [
+    { value: "small", label: "Small" },
+    { value: "large", label: "Large" },
+  ],
+  recommendation: null,
+  allowOther: true,
+};
+
 describe("initState", () => {
   it("starts on tab 0 with cursors at 0", () => {
     const state = initState(questions);
@@ -56,6 +71,13 @@ describe("initState", () => {
     expect(checked).toBeDefined();
     expect(checked?.has("auth")).toBe(true);
     expect(checked?.has("log")).toBe(false);
+  });
+
+  it("initializes inputMode to navigate", () => {
+    const state = initState(questions);
+    expect(state.inputMode).toBe("navigate");
+    expect(state.editingQuestionId).toBeNull();
+    expect(state.customText.size).toBe(0);
   });
 });
 
@@ -308,5 +330,105 @@ describe("reduce", () => {
       expect(answer.selected[0].value).toBe("auth");
       expect(answer.selected[1].value).toBe("log");
     }
+  });
+
+  it("enterTyping sets inputMode and editingQuestionId", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "enterTyping", questionId: "scope" },
+      questions,
+    );
+    expect(next.inputMode).toBe("typing");
+    expect(next.editingQuestionId).toBe("scope");
+  });
+
+  it("submitTyping stores custom text, sets answer, and advances tab", () => {
+    const state = initState(questions);
+    state.inputMode = "typing";
+    state.editingQuestionId = "scope";
+    const next = reduce(
+      state,
+      { type: "submitTyping", questionId: "scope", value: "My answer" },
+      questions,
+    );
+    expect(next.customText.get("scope")).toBe("My answer");
+    expect(next.answers.get("scope")).toEqual({
+      kind: "custom",
+      value: "My answer",
+    });
+    expect(next.inputMode).toBe("navigate");
+    expect(next.editingQuestionId).toBeNull();
+    expect(next.activeTab).toBe(1); // advanced to next unanswered
+  });
+
+  it("submitTyping with empty string does not record answer", () => {
+    const state = initState(questions);
+    state.inputMode = "typing";
+    state.editingQuestionId = "scope";
+    const next = reduce(
+      state,
+      { type: "submitTyping", questionId: "scope", value: "   " },
+      questions,
+    );
+    expect(next.answers.has("scope")).toBe(false);
+    expect(next.inputMode).toBe("navigate");
+  });
+
+  it("cancelTyping resets inputMode without recording answer", () => {
+    const state = initState(questions);
+    state.inputMode = "typing";
+    state.editingQuestionId = "scope";
+    const next = reduce(state, { type: "cancelTyping" }, questions);
+    expect(next.inputMode).toBe("navigate");
+    expect(next.editingQuestionId).toBeNull();
+    expect(next.answers.has("scope")).toBe(false);
+  });
+
+  it("switchTab resets inputMode when in typing mode", () => {
+    const state = initState(questions);
+    state.inputMode = "typing";
+    state.editingQuestionId = "scope";
+    const next = reduce(state, { type: "switchTab", tab: 1 }, questions);
+    expect(next.inputMode).toBe("navigate");
+    expect(next.editingQuestionId).toBeNull();
+  });
+});
+
+describe("visibleRowCount", () => {
+  it("includes sentinel for single-choice with allowOther", () => {
+    expect(visibleRowCount(singleWithOther)).toBe(3); // 2 options + 1 sentinel
+  });
+
+  it("excludes sentinel when allowOther is false", () => {
+    expect(visibleRowCount(questions[0])).toBe(2); // 2 options, no sentinel
+  });
+
+  it("returns options.length for multi-choice", () => {
+    expect(visibleRowCount(questions[1])).toBe(2);
+  });
+});
+
+describe("cursorTarget", () => {
+  it("returns option for cursor within options range", () => {
+    expect(cursorTarget(singleWithOther, 0)).toEqual({
+      kind: "option",
+      index: 0,
+    });
+    expect(cursorTarget(singleWithOther, 1)).toEqual({
+      kind: "option",
+      index: 1,
+    });
+  });
+
+  it("returns other for cursor at sentinel position", () => {
+    expect(cursorTarget(singleWithOther, 2)).toEqual({ kind: "other" });
+  });
+
+  it("clamps to last option when cursor overflows without sentinel", () => {
+    expect(cursorTarget(questions[0], 5)).toEqual({
+      kind: "option",
+      index: 1,
+    });
   });
 });
