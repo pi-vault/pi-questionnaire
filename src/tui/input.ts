@@ -5,11 +5,13 @@ import {
   type QuestionnaireState,
   allAnswered,
   currentQuestion,
+  cursorTarget,
 } from "./state.ts";
 
 export type InputResult =
   | { type: "action"; action: Action }
   | { type: "finalize"; cancelled: boolean }
+  | { type: "forward-to-editor" }
   | { type: "none" };
 
 function action(a: Action): InputResult {
@@ -24,6 +26,21 @@ export function mapInput(
   const reviewTabIndex = questions.length;
   const totalTabs = questions.length + 1;
   const q = currentQuestion(state, questions);
+
+  // Typing mode — forward most keys to the inline editor
+  if (state.inputMode === "typing") {
+    if (matchesKey(data, Key.escape)) {
+      return action({ type: "cancelTyping" });
+    }
+    if (matchesKey(data, Key.up)) {
+      return action({ type: "cancelTyping" });
+    }
+    if (matchesKey(data, Key.down)) {
+      return action({ type: "cancelTyping" });
+    }
+    // Enter, Left, Right, and all other keys → forward to editor
+    return { type: "forward-to-editor" };
+  }
 
   // Global Esc
   if (matchesKey(data, Key.escape)) {
@@ -74,13 +91,19 @@ export function mapInput(
       return action({ type: "moveCursor", direction: "down" });
     }
     if (matchesKey(data, Key.enter) || matchesKey(data, Key.space)) {
-      const opt = q.options[state.optionCursor];
-      return action({
-        type: "selectOption",
-        questionId: q.id,
-        value: opt.value,
-        label: opt.label,
-      });
+      const target = cursorTarget(q, state.optionCursor);
+      if (target.kind === "option") {
+        const opt = q.options[target.index];
+        return action({
+          type: "selectOption",
+          questionId: q.id,
+          value: opt.value,
+          label: opt.label,
+        });
+      }
+      if (target.kind === "other") {
+        return action({ type: "enterTyping", questionId: q.id });
+      }
     }
     return { type: "none" };
   }
