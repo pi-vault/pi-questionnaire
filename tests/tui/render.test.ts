@@ -52,6 +52,7 @@ describe("renderQuestionnaire", () => {
     const state = initState(questions);
     const lines = renderQuestionnaire(state, questions, noopTheme, 80);
     const text = lines.join("\n");
+    expect(text).toContain("Left/Right tabs");
     expect(text).toContain("Space/Enter select");
   });
 

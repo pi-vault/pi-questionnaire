@@ -82,10 +82,10 @@ export function renderQuestionnaire(
   lines.push("");
   const hint =
     state.activeTab === reviewTabIndex
-      ? "Tab navigate | Up/Down move | Space jump | Enter submit | Esc cancel"
+      ? "Left/Right tabs | Up/Down move | Space jump | Enter submit | Esc cancel"
       : q?.type === "multi-choice"
-        ? "Tab navigate | Up/Down move | Space toggle | Esc cancel"
-        : "Tab navigate | Up/Down move | Space/Enter select | Esc cancel";
+        ? "Left/Right tabs | Up/Down move | Space toggle | Esc cancel"
+        : "Left/Right tabs | Up/Down move | Space/Enter select | Esc cancel";
   pushWrapped(lines, theme.fg("dim", hint), renderWidth);
 
   lines.push(theme.fg("accent", "\u2500".repeat(renderWidth)));

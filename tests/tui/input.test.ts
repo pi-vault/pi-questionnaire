@@ -35,18 +35,6 @@ describe("mapInput", () => {
     expect(result).toEqual({ type: "finalize", cancelled: true });
   });
 
-  it("Tab returns switchTab to next", () => {
-    const state = initState(questions);
-    const result = mapInput("\t", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action.type).toBe("switchTab");
-      if (result.action.type === "switchTab") {
-        expect(result.action.tab).toBe(1);
-      }
-    }
-  });
-
   it("Up on single-choice returns moveCursor up", () => {
     const state = { ...initState(questions), optionCursor: 1 };
     const result = mapInput("\x1b[A", state, questions);
@@ -166,27 +154,6 @@ describe("mapInput", () => {
     expect(result).toEqual({ type: "none" });
   });
 
-  it("Shift+Tab returns switchTab to previous", () => {
-    const state = { ...initState(questions), activeTab: 1 };
-    const result = mapInput("\x1b[Z", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "switchTab", tab: 0 });
-    }
-  });
-
-  it("Shift+Tab wraps from first tab to review", () => {
-    const state = initState(questions);
-    const result = mapInput("\x1b[Z", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "switchTab",
-        tab: questions.length,
-      });
-    }
-  });
-
   it("Right arrow on single-choice returns switchTab to next", () => {
     const state = initState(questions);
     const result = mapInput("\x1b[C", state, questions);
@@ -202,6 +169,21 @@ describe("mapInput", () => {
     expect(result.type).toBe("action");
     if (result.type === "action") {
       expect(result.action).toEqual({ type: "switchTab", tab: 0 });
+    }
+  });
+
+  it("Right arrow wraps from last question tab to review", () => {
+    const state = {
+      ...initState(questions),
+      activeTab: questions.length - 1,
+    };
+    const result = mapInput("\x1b[C", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({
+        type: "switchTab",
+        tab: questions.length,
+      });
     }
   });
 
