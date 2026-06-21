@@ -25,6 +25,7 @@ const questions: NormalizedQuestion[] = [
     ],
     recommendation: "small",
     allowOther: false,
+    allowChat: false,
   },
   {
     type: "multi-choice",
@@ -36,6 +37,7 @@ const questions: NormalizedQuestion[] = [
       { value: "log", label: "Logging" },
     ],
     recommendation: ["auth"],
+    allowChat: false,
   },
 ];
 
@@ -50,7 +52,78 @@ const singleWithOther: NormalizedQuestion = {
   ],
   recommendation: null,
   allowOther: true,
+  allowChat: false,
 };
+
+const singleWithChat: NormalizedQuestion = {
+  type: "single-choice",
+  id: "scope-chat",
+  header: "Scope",
+  prompt: "Pick scope",
+  options: [
+    { value: "small", label: "Small" },
+    { value: "large", label: "Large" },
+  ],
+  recommendation: null,
+  allowOther: false,
+  allowChat: true,
+};
+
+const singleWithOtherAndChat: NormalizedQuestion = {
+  type: "single-choice",
+  id: "scope-other-chat",
+  header: "Scope",
+  prompt: "Pick scope",
+  options: [
+    { value: "small", label: "Small" },
+    { value: "large", label: "Large" },
+  ],
+  recommendation: null,
+  allowOther: true,
+  allowChat: true,
+};
+
+const multiWithChat: NormalizedQuestion = {
+  type: "multi-choice",
+  id: "features-chat",
+  header: "Features",
+  prompt: "Pick features",
+  options: [
+    { value: "auth", label: "Auth" },
+    { value: "log", label: "Logging" },
+  ],
+  recommendation: [],
+  allowChat: true,
+};
+
+// Questions used for selectChat / confirmMulti reducer tests
+const questionsWithChat: NormalizedQuestion[] = [
+  {
+    type: "single-choice",
+    id: "q1",
+    header: "Q1",
+    prompt: "Pick one",
+    options: [
+      { value: "a", label: "A" },
+      { value: "b", label: "B" },
+    ],
+    recommendation: null,
+    allowOther: false,
+    allowChat: true,
+  },
+  {
+    type: "multi-choice",
+    id: "q2",
+    header: "Q2",
+    prompt: "Pick many",
+    options: [
+      { value: "x", label: "X" },
+      { value: "y", label: "Y" },
+    ],
+    recommendation: [],
+    allowChat: true,
+  },
+];
 
 describe("initState", () => {
   it("starts on tab 0 with cursors at 0", () => {
@@ -401,11 +474,23 @@ describe("visibleRowCount", () => {
   });
 
   it("excludes sentinel when allowOther is false", () => {
-    expect(visibleRowCount(questions[0])).toBe(2); // 2 options, no sentinel
+    expect(visibleRowCount(questions[0])).toBe(2); // 2 options, no sentinel, no chat
   });
 
-  it("returns options.length for multi-choice", () => {
-    expect(visibleRowCount(questions[1])).toBe(2);
+  it("always includes Next row for multi-choice", () => {
+    expect(visibleRowCount(questions[1])).toBe(3); // 2 options + Next
+  });
+
+  it("includes chat row for single-choice with allowChat (no allowOther)", () => {
+    expect(visibleRowCount(singleWithChat)).toBe(3); // 2 options + chat
+  });
+
+  it("includes other and chat rows for single-choice with allowOther and allowChat", () => {
+    expect(visibleRowCount(singleWithOtherAndChat)).toBe(4); // 2 options + other + chat
+  });
+
+  it("includes chat and Next rows for multi-choice with allowChat", () => {
+    expect(visibleRowCount(multiWithChat)).toBe(4); // 2 options + chat + Next
   });
 });
 
@@ -430,5 +515,109 @@ describe("cursorTarget", () => {
       kind: "option",
       index: 1,
     });
+  });
+
+  it("returns chat for cursor at options.length on single-choice with allowChat (no allowOther)", () => {
+    expect(cursorTarget(singleWithChat, 2)).toEqual({ kind: "chat" });
+  });
+
+  it("returns other for cursor at options.length on single-choice with allowOther and allowChat", () => {
+    expect(cursorTarget(singleWithOtherAndChat, 2)).toEqual({ kind: "other" });
+  });
+
+  it("returns chat for cursor at options.length+1 on single-choice with allowOther and allowChat", () => {
+    expect(cursorTarget(singleWithOtherAndChat, 3)).toEqual({ kind: "chat" });
+  });
+
+  it("returns chat for cursor at options.length on multi-choice with allowChat", () => {
+    expect(cursorTarget(multiWithChat, 2)).toEqual({ kind: "chat" });
+  });
+
+  it("returns next for cursor at options.length+1 on multi-choice with allowChat", () => {
+    expect(cursorTarget(multiWithChat, 3)).toEqual({ kind: "next" });
+  });
+
+  it("returns next for cursor at options.length on multi-choice without allowChat", () => {
+    expect(cursorTarget(questions[1], 2)).toEqual({ kind: "next" });
+  });
+});
+
+describe("selectChat action", () => {
+  it("sets chat answer and advances to next tab", () => {
+    const state = initState(questionsWithChat);
+    const next = reduce(
+      state,
+      { type: "selectChat", questionId: "q1" },
+      questionsWithChat,
+    );
+    expect(next.answers.get("q1")).toEqual({ kind: "chat" });
+    expect(next.activeTab).toBe(1); // advanced to q2 (unanswered)
+    expect(next.optionCursor).toBe(0);
+    expect(next.reviewCursor).toBe(0);
+  });
+
+  it("clears multiChecked when selecting chat on multi-choice question", () => {
+    const state = initState(questionsWithChat);
+    state.activeTab = 1;
+    state.answers.set("q1", { kind: "chat" }); // q1 already answered
+    const checked = state.multiChecked.get("q2")!;
+    checked.add("x"); // simulate prior toggleCheckbox
+
+    const next = reduce(
+      state,
+      { type: "selectChat", questionId: "q2" },
+      questionsWithChat,
+    );
+    expect(next.answers.get("q2")).toEqual({ kind: "chat" });
+    expect(next.multiChecked.get("q2")?.size).toBe(0);
+  });
+
+  it("advances to review tab when all questions answered via chat", () => {
+    const state = initState(questionsWithChat);
+    state.answers.set("q2", { kind: "options", selected: [{ value: "x", label: "X" }] });
+    const next = reduce(
+      state,
+      { type: "selectChat", questionId: "q1" },
+      questionsWithChat,
+    );
+    expect(next.activeTab).toBe(questionsWithChat.length); // review tab
+  });
+});
+
+describe("confirmMulti action", () => {
+  it("advances to next unanswered tab without changing the answer", () => {
+    const state = initState(questionsWithChat);
+    state.activeTab = 1;
+    // Answer already synced via prior toggleCheckbox
+    state.answers.set("q2", { kind: "options", selected: [{ value: "x", label: "X" }] });
+
+    const next = reduce(
+      state,
+      { type: "confirmMulti", questionId: "q2" },
+      questionsWithChat,
+    );
+    // q1 is unanswered, so advance there
+    expect(next.activeTab).toBe(0);
+    expect(next.optionCursor).toBe(0);
+    expect(next.reviewCursor).toBe(0);
+    // Answer is unchanged
+    expect(next.answers.get("q2")).toEqual({
+      kind: "options",
+      selected: [{ value: "x", label: "X" }],
+    });
+  });
+
+  it("advances to review tab when all questions are answered", () => {
+    const state = initState(questionsWithChat);
+    state.activeTab = 1;
+    state.answers.set("q1", { kind: "chat" });
+    state.answers.set("q2", { kind: "options", selected: [{ value: "x", label: "X" }] });
+
+    const next = reduce(
+      state,
+      { type: "confirmMulti", questionId: "q2" },
+      questionsWithChat,
+    );
+    expect(next.activeTab).toBe(questionsWithChat.length); // review tab
   });
 });

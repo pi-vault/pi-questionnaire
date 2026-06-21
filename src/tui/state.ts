@@ -7,13 +7,20 @@ import type {
 
 export type CursorTarget =
   | { kind: "option"; index: number }
-  | { kind: "other" };
+  | { kind: "other" }
+  | { kind: "chat" }
+  | { kind: "next" };
 
 export function visibleRowCount(question: NormalizedQuestion): number {
   if (question.type === "single-choice") {
-    return question.options.length + (question.allowOther ? 1 : 0);
+    return (
+      question.options.length +
+      (question.allowOther ? 1 : 0) +
+      (question.allowChat ? 1 : 0)
+    );
   }
-  return question.options.length;
+  // multi-choice: options + chat? + Next
+  return question.options.length + (question.allowChat ? 1 : 0) + 1;
 }
 
 export function cursorTarget(
@@ -23,17 +30,21 @@ export function cursorTarget(
   if (cursor < question.options.length) {
     return { kind: "option", index: cursor };
   }
-  if (
-    question.type === "single-choice" &&
-    question.allowOther &&
-    cursor === question.options.length
-  ) {
-    return { kind: "other" };
+
+  let sentinel = question.options.length;
+
+  if (question.type === "single-choice") {
+    if (question.allowOther && cursor === sentinel) return { kind: "other" };
+    if (question.allowOther) sentinel++;
+    if (question.allowChat && cursor === sentinel) return { kind: "chat" };
+    return { kind: "option", index: question.options.length - 1 };
   }
-  return {
-    kind: "option",
-    index: Math.min(cursor, question.options.length - 1),
-  };
+
+  // multi-choice
+  if (question.allowChat && cursor === sentinel) return { kind: "chat" };
+  if (question.allowChat) sentinel++;
+  if (cursor === sentinel) return { kind: "next" };
+  return { kind: "option", index: question.options.length - 1 };
 }
 
 export interface QuestionnaireState {
@@ -55,7 +66,9 @@ export type Action =
   | { type: "resetCursors" }
   | { type: "enterTyping"; questionId: string }
   | { type: "submitTyping"; questionId: string; value: string }
-  | { type: "cancelTyping" };
+  | { type: "cancelTyping" }
+  | { type: "selectChat"; questionId: string }
+  | { type: "confirmMulti"; questionId: string };
 
 export function initState(questions: NormalizedQuestion[]): QuestionnaireState {
   const multiChecked = new Map<string, Set<string>>();
@@ -237,6 +250,26 @@ export function reduce(
     case "cancelTyping": {
       next.inputMode = "navigate";
       next.editingQuestionId = null;
+      return next;
+    }
+    case "selectChat": {
+      // Chat replaces any existing selection; for multi-choice, clear checked
+      next.answers.set(action.questionId, { kind: "chat" });
+      const checked = next.multiChecked.get(action.questionId);
+      if (checked) checked.clear();
+      // Chat counts as answered — advance to next unanswered tab
+      const nextTab = advanceToNextTab(next, questions);
+      next.activeTab = nextTab;
+      next.optionCursor = 0;
+      next.reviewCursor = 0;
+      return next;
+    }
+    case "confirmMulti": {
+      // Answer already synced via toggleCheckbox. Just advance.
+      const nextTab = advanceToNextTab(next, questions);
+      next.activeTab = nextTab;
+      next.optionCursor = 0;
+      next.reviewCursor = 0;
       return next;
     }
   }
