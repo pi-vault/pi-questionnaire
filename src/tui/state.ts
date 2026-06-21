@@ -85,6 +85,113 @@ export function getSelectedValue(
   return null;
 }
 
+function cloneState(state: QuestionnaireState): QuestionnaireState {
+  return {
+    activeTab: state.activeTab,
+    optionCursor: state.optionCursor,
+    reviewCursor: state.reviewCursor,
+    answers: new Map(state.answers),
+    multiChecked: new Map(
+      [...state.multiChecked].map(([k, v]) => [k, new Set(v)]),
+    ),
+    textValues: new Map(state.textValues),
+  };
+}
+
+export function reduce(
+  state: QuestionnaireState,
+  action: Action,
+  questions: NormalizedQuestion[],
+): QuestionnaireState {
+  const next = cloneState(state);
+
+  switch (action.type) {
+    case "switchTab": {
+      next.activeTab = action.tab;
+      next.optionCursor = 0;
+      next.reviewCursor = 0;
+      return next;
+    }
+    case "moveCursor": {
+      const q = currentQuestion(next, questions);
+      if (!q) {
+        // Review tab
+        if (action.direction === "up") {
+          next.reviewCursor = Math.max(0, next.reviewCursor - 1);
+        } else {
+          next.reviewCursor = Math.min(
+            questions.length - 1,
+            next.reviewCursor + 1,
+          );
+        }
+        return next;
+      }
+      if (q.type === "single-choice" || q.type === "multi-choice") {
+        const optCount = q.options.length;
+        if (action.direction === "up") {
+          next.optionCursor = Math.max(0, next.optionCursor - 1);
+        } else {
+          next.optionCursor = Math.min(optCount - 1, next.optionCursor + 1);
+        }
+      }
+      return next;
+    }
+    case "selectOption": {
+      next.answers.set(action.questionId, {
+        type: "single-choice",
+        questionId: action.questionId,
+        value: action.value,
+        label: action.label,
+      });
+      const nextTab = advanceToNextTab(next, questions);
+      next.activeTab = nextTab;
+      next.optionCursor = 0;
+      next.reviewCursor = 0;
+      return next;
+    }
+    case "toggleCheckbox": {
+      const checked = next.multiChecked.get(action.questionId) ?? new Set();
+      if (checked.has(action.value)) {
+        checked.delete(action.value);
+      } else {
+        checked.add(action.value);
+      }
+      next.multiChecked.set(action.questionId, checked);
+      // Sync answer
+      const q = questions.find((q) => q.id === action.questionId);
+      if (q?.type === "multi-choice") {
+        const selected = q.options
+          .filter((o) => checked.has(o.value))
+          .map((o) => ({ value: o.value, label: o.label }));
+        if (selected.length > 0) {
+          next.answers.set(action.questionId, {
+            type: "multi-choice",
+            questionId: action.questionId,
+            selected,
+          });
+        } else {
+          next.answers.delete(action.questionId);
+        }
+      }
+      return next;
+    }
+    case "submitText": {
+      next.textValues.set(action.questionId, action.value);
+      next.answers.set(action.questionId, {
+        type: "text",
+        questionId: action.questionId,
+        value: action.value,
+      });
+      return next;
+    }
+    case "resetCursors": {
+      next.optionCursor = 0;
+      next.reviewCursor = 0;
+      return next;
+    }
+  }
+}
+
 export function buildResult(
   state: QuestionnaireState,
   questions: NormalizedQuestion[],

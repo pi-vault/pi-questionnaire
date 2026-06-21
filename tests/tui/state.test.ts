@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { NormalizedQuestion } from "../../src/core/types.ts";
 import {
   initState,
+  reduce,
   allAnswered,
   answeredIds,
   currentQuestion,
@@ -223,5 +224,249 @@ describe("buildResult", () => {
     const result = buildResult(state, questions, true);
     expect(result.cancelled).toBe(true);
     expect(result.answers).toHaveLength(0);
+  });
+});
+
+describe("reduce", () => {
+  it("switchTab changes active tab and resets cursors", () => {
+    const state = { ...initState(questions), optionCursor: 2, reviewCursor: 1 };
+    const next = reduce(state, { type: "switchTab", tab: 1 }, questions);
+    expect(next.activeTab).toBe(1);
+    expect(next.optionCursor).toBe(0);
+    expect(next.reviewCursor).toBe(0);
+  });
+
+  it("switchTab does not mutate original state", () => {
+    const state = initState(questions);
+    const next = reduce(state, { type: "switchTab", tab: 1 }, questions);
+    expect(state.activeTab).toBe(0);
+    expect(next.activeTab).toBe(1);
+  });
+
+  it("moveCursor up decrements optionCursor", () => {
+    const state = { ...initState(questions), optionCursor: 1 };
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "up" },
+      questions,
+    );
+    expect(next.optionCursor).toBe(0);
+  });
+
+  it("moveCursor down increments optionCursor", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "down" },
+      questions,
+    );
+    expect(next.optionCursor).toBe(1);
+  });
+
+  it("moveCursor clamps at bounds", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "up" },
+      questions,
+    );
+    expect(next.optionCursor).toBe(0);
+  });
+
+  it("moveCursor on review tab moves reviewCursor", () => {
+    const state = { ...initState(questions), activeTab: questions.length };
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "down" },
+      questions,
+    );
+    expect(next.reviewCursor).toBe(1);
+  });
+
+  it("selectOption records answer and advances", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      {
+        type: "selectOption",
+        questionId: "scope",
+        value: "small",
+        label: "Small",
+      },
+      questions,
+    );
+    const answer = next.answers.get("scope");
+    expect(answer?.type).toBe("single-choice");
+    expect(next.activeTab).toBe(1); // advanced to next unanswered
+  });
+
+  it("toggleCheckbox adds value and syncs answer", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "toggleCheckbox", questionId: "features", value: "log" },
+      questions,
+    );
+    expect(next.multiChecked.get("features")?.has("log")).toBe(true);
+    expect(next.multiChecked.get("features")?.has("auth")).toBe(true); // from recommendation
+    const answer = next.answers.get("features");
+    expect(answer?.type).toBe("multi-choice");
+    if (answer?.type === "multi-choice") {
+      expect(answer.selected).toHaveLength(2);
+    }
+  });
+
+  it("toggleCheckbox removes value when already checked", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "toggleCheckbox", questionId: "features", value: "auth" },
+      questions,
+    );
+    expect(next.multiChecked.get("features")?.has("auth")).toBe(false);
+    // No selections left — answer should be removed
+    expect(next.answers.has("features")).toBe(false);
+  });
+
+  it("submitText records text answer", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "submitText", questionId: "notes", value: "my notes" },
+      questions,
+    );
+    expect(next.textValues.get("notes")).toBe("my notes");
+    const answer = next.answers.get("notes");
+    expect(answer?.type).toBe("text");
+    if (answer?.type === "text") {
+      expect(answer.value).toBe("my notes");
+    }
+  });
+
+  it("resetCursors zeros both cursors", () => {
+    const state = {
+      ...initState(questions),
+      optionCursor: 3,
+      reviewCursor: 2,
+    };
+    const next = reduce(state, { type: "resetCursors" }, questions);
+    expect(next.optionCursor).toBe(0);
+    expect(next.reviewCursor).toBe(0);
+  });
+
+  it("moveCursor down clamps at last option", () => {
+    const state = { ...initState(questions), optionCursor: 1 };
+    // scope has 2 options, so max index is 1
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "down" },
+      questions,
+    );
+    expect(next.optionCursor).toBe(1);
+  });
+
+  it("moveCursor on review tab clamps reviewCursor at 0", () => {
+    const state = { ...initState(questions), activeTab: questions.length };
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "up" },
+      questions,
+    );
+    expect(next.reviewCursor).toBe(0);
+  });
+
+  it("moveCursor on review tab clamps at last question", () => {
+    const state = {
+      ...initState(questions),
+      activeTab: questions.length,
+      reviewCursor: questions.length - 1,
+    };
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "down" },
+      questions,
+    );
+    expect(next.reviewCursor).toBe(questions.length - 1);
+  });
+
+  it("selectOption advances to review when all answered", () => {
+    const state = initState(questions);
+    state.answers.set("features", {
+      type: "multi-choice",
+      questionId: "features",
+      selected: [{ value: "auth", label: "Auth" }],
+    });
+    state.answers.set("notes", {
+      type: "text",
+      questionId: "notes",
+      value: "ok",
+    });
+    const next = reduce(
+      state,
+      {
+        type: "selectOption",
+        questionId: "scope",
+        value: "small",
+        label: "Small",
+      },
+      questions,
+    );
+    expect(next.activeTab).toBe(questions.length); // review tab
+  });
+
+  it("selectOption resets cursors after advancing", () => {
+    const state = { ...initState(questions), optionCursor: 1 };
+    const next = reduce(
+      state,
+      {
+        type: "selectOption",
+        questionId: "scope",
+        value: "small",
+        label: "Small",
+      },
+      questions,
+    );
+    expect(next.optionCursor).toBe(0);
+    expect(next.reviewCursor).toBe(0);
+  });
+
+  it("toggleCheckbox with multiple selections preserves question order", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "toggleCheckbox", questionId: "features", value: "log" },
+      questions,
+    );
+    const answer = next.answers.get("features");
+    if (answer?.type === "multi-choice") {
+      // auth (from recommendation) comes before log in options array
+      expect(answer.selected[0].value).toBe("auth");
+      expect(answer.selected[1].value).toBe("log");
+    }
+  });
+
+  it("submitText overwrites previous text value", () => {
+    const state = initState(questions);
+    let next = reduce(
+      state,
+      { type: "submitText", questionId: "notes", value: "first" },
+      questions,
+    );
+    next = reduce(
+      next,
+      { type: "submitText", questionId: "notes", value: "second" },
+      questions,
+    );
+    expect(next.textValues.get("notes")).toBe("second");
+  });
+
+  it("moveCursor ignores text questions", () => {
+    const state = { ...initState(questions), activeTab: 2 }; // text tab
+    const next = reduce(
+      state,
+      { type: "moveCursor", direction: "down" },
+      questions,
+    );
+    expect(next.optionCursor).toBe(0); // unchanged
   });
 });
