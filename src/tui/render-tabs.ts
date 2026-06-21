@@ -1,16 +1,11 @@
 import type { NormalizedQuestion } from "../core/types.ts";
-
-interface TabBarTheme {
-  fg(color: string, text: string): string;
-  bg(color: string, text: string): string;
-  bold(text: string): string;
-}
+import type { RenderTheme } from "./theme.ts";
 
 export function renderTabBar(
   questions: NormalizedQuestion[],
   activeTab: number,
   answeredIds: Set<string>,
-  theme: TabBarTheme,
+  theme: RenderTheme,
   _width: number,
 ): string[] {
   const reviewTabIndex = questions.length;
