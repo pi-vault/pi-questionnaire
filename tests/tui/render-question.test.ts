@@ -20,6 +20,7 @@ describe("renderSingleChoiceQuestion", () => {
       { value: "large", label: "Large", description: "Very large" },
     ],
     recommendation: "small",
+    allowOther: false,
   };
 
   it("renders prompt and all options", () => {
