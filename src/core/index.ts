@@ -24,8 +24,8 @@ export type {
   SingleChoiceAnswer,
   TextAnswer,
 } from "./types.ts";
-export { validateQuestions } from "./validate.ts";
-export { normalizeQuestions } from "./normalize.ts";
+export { processQuestions } from "./process.ts";
+export type { ProcessResult } from "./process.ts";
 export {
   formatContentSummary,
   formatAnswerForRender,
