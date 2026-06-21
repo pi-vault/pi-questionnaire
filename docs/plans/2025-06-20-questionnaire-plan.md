@@ -2331,7 +2331,7 @@ export default function createExtension(pi: ExtensionAPI): void {
 
       const normalized = normalizeQuestions(params.questions);
 
-      if (!ctx.hasUI) {
+      if (ctx.mode !== "tui") {
         return errorResult("Questionnaire requires interactive mode.");
       }
 

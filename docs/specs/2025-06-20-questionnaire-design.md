@@ -117,7 +117,7 @@ promptGuidelines:
 ## Execute Flow
 
 ```
-params -> validate -> normalize -> check ctx.hasUI -> runQuestionnaireUI -> format result
+params -> validate -> normalize -> check ctx.mode === "tui" -> runQuestionnaireUI -> format result
 ```
 
 ## TUI State

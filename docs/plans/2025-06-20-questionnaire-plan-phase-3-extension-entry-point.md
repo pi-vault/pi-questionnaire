@@ -13,6 +13,7 @@ This phase wires core + TUI into the tool registration. After this phase the ext
 ## Task 13: Extension entry point
 
 **Files:**
+
 - Modify: `src/index.ts`
 - Modify: `tests/index.test.ts`
 
@@ -96,7 +97,7 @@ export default function createExtension(pi: ExtensionAPI): void {
 
       const normalized = normalizeQuestions(params.questions);
 
-      if (!ctx.hasUI) {
+      if (ctx.mode !== "tui") {
         return errorResult("Questionnaire requires interactive mode.");
       }
 
