@@ -1,4 +1,10 @@
-import type { QuestionInput } from "./types.ts";
+import type { QuestionInput } from "./schema.ts";
+import {
+  MIN_QUESTIONS,
+  MAX_QUESTIONS,
+  MIN_OPTIONS,
+  MAX_OPTIONS,
+} from "./schema.ts";
 
 type ValidationResult = { valid: true } | { valid: false; error: string };
 
@@ -8,13 +14,13 @@ export function validateQuestions(
   if (questions.length === 0) {
     return {
       valid: false,
-      error: "Questionnaire must include at least 1 question.",
+      error: `Questionnaire must include at least ${MIN_QUESTIONS} question.`,
     };
   }
-  if (questions.length > 10) {
+  if (questions.length > MAX_QUESTIONS) {
     return {
       valid: false,
-      error: "Questionnaire supports at most 10 questions.",
+      error: `Questionnaire supports at most ${MAX_QUESTIONS} questions.`,
     };
   }
 
@@ -50,10 +56,10 @@ export function validateQuestions(
     }
 
     if (q.type === "single-choice" || q.type === "multi-choice") {
-      if (q.options.length < 2 || q.options.length > 12) {
+      if (q.options.length < MIN_OPTIONS || q.options.length > MAX_OPTIONS) {
         return {
           valid: false,
-          error: `Question "${trimmedId}" must have 2-12 options.`,
+          error: `Question "${trimmedId}" must have ${MIN_OPTIONS}-${MAX_OPTIONS} options.`,
         };
       }
 

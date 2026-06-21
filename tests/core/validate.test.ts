@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { QuestionInput } from "../../src/core/types.ts";
+import type { QuestionInput } from "../../src/core/schema.ts";
 import { validateQuestions } from "../../src/core/validate.ts";
 
 function choiceQ(

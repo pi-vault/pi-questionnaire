@@ -1,4 +1,17 @@
-export { QuestionnaireParamsSchema } from "./schema.ts";
+export {
+  QuestionnaireParamsSchema,
+  MIN_QUESTIONS,
+  MAX_QUESTIONS,
+  MIN_OPTIONS,
+  MAX_OPTIONS,
+} from "./schema.ts";
+export type {
+  QuestionOption,
+  SingleChoiceQuestionInput,
+  MultiChoiceQuestionInput,
+  TextQuestionInput,
+  QuestionInput,
+} from "./schema.ts";
 export type {
   MultiChoiceAnswer,
   NormalizedAnswer,
@@ -6,9 +19,7 @@ export type {
   NormalizedQuestion,
   NormalizedSingleChoiceQuestion,
   NormalizedTextQuestion,
-  QuestionInput,
   QuestionnaireResult,
-  QuestionOption,
   SelectedOption,
   SingleChoiceAnswer,
   TextAnswer,

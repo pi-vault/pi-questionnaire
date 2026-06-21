@@ -1,39 +1,4 @@
-export interface QuestionOption {
-  value: string;
-  label: string;
-  description?: string;
-}
-
-export interface SingleChoiceQuestionInput {
-  type: "single-choice";
-  id: string;
-  header: string;
-  prompt: string;
-  options: QuestionOption[];
-  recommendation?: string;
-}
-
-export interface MultiChoiceQuestionInput {
-  type: "multi-choice";
-  id: string;
-  header: string;
-  prompt: string;
-  options: QuestionOption[];
-  recommendation?: string[];
-}
-
-export interface TextQuestionInput {
-  type: "text";
-  id: string;
-  header: string;
-  prompt: string;
-  recommendation?: string;
-}
-
-export type QuestionInput =
-  | SingleChoiceQuestionInput
-  | MultiChoiceQuestionInput
-  | TextQuestionInput;
+import type { QuestionOption } from "./schema.ts";
 
 export interface NormalizedSingleChoiceQuestion {
   type: "single-choice";
@@ -90,7 +55,10 @@ export interface TextAnswer {
   value: string;
 }
 
-export type NormalizedAnswer = SingleChoiceAnswer | MultiChoiceAnswer | TextAnswer;
+export type NormalizedAnswer =
+  | SingleChoiceAnswer
+  | MultiChoiceAnswer
+  | TextAnswer;
 
 export interface QuestionnaireResult {
   questions: NormalizedQuestion[];
