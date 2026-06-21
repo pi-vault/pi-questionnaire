@@ -9,6 +9,9 @@ export function renderSingleChoiceQuestion(
   question: NormalizedSingleChoiceQuestion,
   cursor: number,
   selectedValue: string | null,
+  customText: string | null,
+  inputMode: "navigate" | "typing" | "notes",
+  editorLines: string[],
   theme: RenderTheme,
   width: number,
 ): string[] {
@@ -46,6 +49,27 @@ export function renderSingleChoiceQuestion(
         theme.fg("muted", opt.description),
         width,
       );
+    }
+  }
+
+  // "Type something." sentinel
+  if (question.allowOther) {
+    const sentinelIndex = question.options.length;
+    const isCursor = sentinelIndex === cursor;
+    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+
+    if (inputMode === "typing") {
+      const editorContent = editorLines.join("") || "";
+      const label = `${sentinelIndex + 1}. ${editorContent}`;
+      pushWrappedWithPrefix(lines, prefix, theme.fg("accent", label), width);
+    } else if (customText) {
+      const label = `${sentinelIndex + 1}. "${customText}"`;
+      const color = isCursor ? "accent" : "text";
+      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+    } else {
+      const label = `${sentinelIndex + 1}. Type something.`;
+      const color = isCursor ? "accent" : "muted";
+      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
     }
   }
 

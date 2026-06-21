@@ -28,6 +28,9 @@ describe("renderSingleChoiceQuestion", () => {
       question,
       0,
       null,
+      null,
+      "navigate",
+      [],
       noopTheme,
       80,
     );
@@ -42,6 +45,9 @@ describe("renderSingleChoiceQuestion", () => {
       question,
       0,
       null,
+      null,
+      "navigate",
+      [],
       noopTheme,
       80,
     );
@@ -54,6 +60,9 @@ describe("renderSingleChoiceQuestion", () => {
       question,
       0,
       null,
+      null,
+      "navigate",
+      [],
       noopTheme,
       80,
     );
@@ -66,6 +75,9 @@ describe("renderSingleChoiceQuestion", () => {
       question,
       1,
       null,
+      null,
+      "navigate",
+      [],
       noopTheme,
       80,
     );
@@ -78,6 +90,9 @@ describe("renderSingleChoiceQuestion", () => {
       question,
       1,
       "small",
+      null,
+      "navigate",
+      [],
       noopTheme,
       80,
     );
@@ -93,12 +108,78 @@ describe("renderSingleChoiceQuestion", () => {
       question,
       0,
       "small",
+      null,
+      "navigate",
+      [],
       noopTheme,
       80,
     );
     const text = lines.join("\n");
     // Cursor takes priority over bullet
     expect(text).toContain("\u25B8 1. Small");
+  });
+
+  it("renders 'Type something.' sentinel when allowOther is true", () => {
+    const q = { ...question, allowOther: true };
+    const lines = renderSingleChoiceQuestion(
+      q,
+      0,
+      null,
+      null,
+      "navigate",
+      [],
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).toContain("3. Type something.");
+  });
+
+  it("does not render sentinel when allowOther is false", () => {
+    const lines = renderSingleChoiceQuestion(
+      question,
+      0,
+      null,
+      null,
+      "navigate",
+      [],
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).not.toContain("Type something.");
+  });
+
+  it("renders custom text when set", () => {
+    const q = { ...question, allowOther: true };
+    const lines = renderSingleChoiceQuestion(
+      q,
+      0,
+      null,
+      "My custom answer",
+      "navigate",
+      [],
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).toContain('"My custom answer"');
+  });
+
+  it("renders editor content in typing mode", () => {
+    const q = { ...question, allowOther: true };
+    const lines = renderSingleChoiceQuestion(
+      q,
+      q.options.length,
+      null,
+      null,
+      "typing",
+      ["hello"],
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).toContain("hello");
   });
 });
 
