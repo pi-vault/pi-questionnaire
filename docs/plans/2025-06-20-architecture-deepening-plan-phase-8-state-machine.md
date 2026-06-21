@@ -52,7 +52,6 @@ tests/tui/
 import type {
   NormalizedAnswer,
   NormalizedQuestion,
-  SelectedOption,
 } from "../core/types.ts";
 
 export interface QuestionnaireState {
@@ -1132,13 +1131,12 @@ describe("mapInput", () => {
     }
   });
 
-  it("Enter on review without all answered returns none", () => {
+  it("Enter on review without all answered navigates to question at cursor", () => {
     const state = { ...initState(questions), activeTab: questions.length };
     const result = mapInput("\r", state, questions);
-    // Not all answered, so Enter navigates to question at cursor
     expect(result.type).toBe("action");
     if (result.type === "action") {
-      expect(result.action.type).toBe("switchTab");
+      expect(result.action).toEqual({ type: "switchTab", tab: 0 });
     }
   });
 
@@ -1164,6 +1162,69 @@ describe("mapInput", () => {
     if (result.type === "action") {
       expect(result.action.type).toBe("switchTab");
     }
+  });
+
+  it("Shift+Tab returns switchTab to previous", () => {
+    const state = { ...initState(questions), activeTab: 1 };
+    const result = mapInput("\x1b[Z", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({ type: "switchTab", tab: 0 });
+    }
+  });
+
+  it("Shift+Tab wraps from first tab to review", () => {
+    const state = initState(questions);
+    const result = mapInput("\x1b[Z", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({
+        type: "switchTab",
+        tab: questions.length,
+      });
+    }
+  });
+
+  it("Right arrow on single-choice returns switchTab to next", () => {
+    const state = initState(questions);
+    const result = mapInput("\x1b[C", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({ type: "switchTab", tab: 1 });
+    }
+  });
+
+  it("Left arrow on single-choice returns switchTab to previous", () => {
+    const state = { ...initState(questions), activeTab: 1 };
+    const result = mapInput("\x1b[D", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({ type: "switchTab", tab: 0 });
+    }
+  });
+
+  it("Left arrow on review tab returns switchTab", () => {
+    const state = { ...initState(questions), activeTab: questions.length };
+    const result = mapInput("\x1b[D", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({
+        type: "switchTab",
+        tab: questions.length - 1,
+      });
+    }
+  });
+
+  it("Left arrow on text question forwards to editor", () => {
+    const state = { ...initState(questions), activeTab: 2 };
+    const result = mapInput("\x1b[D", state, questions);
+    expect(result).toEqual({ type: "forward-to-editor" });
+  });
+
+  it("Right arrow on text question forwards to editor", () => {
+    const state = { ...initState(questions), activeTab: 2 };
+    const result = mapInput("\x1b[C", state, questions);
+    expect(result).toEqual({ type: "forward-to-editor" });
   });
 
   it("unrecognized key on single-choice returns none", () => {
@@ -1525,7 +1586,7 @@ Expected: PASS (biome lint + typecheck + all tests)
 - [ ] **Step 2: Verify test count meets spec requirement (60+ state machine tests)**
 
 Run: `pnpm test`
-Expected: 52 original + 4 process + ~43 state + ~18 input + ~6 render = ~123 total tests. State machine tests alone (state + input + render) should be 60+.
+Expected: 52 original + 4 process + ~43 state + ~25 input + ~6 render = ~130 total tests. State machine tests alone (state + input + render) should be 60+.
 
 - [ ] **Step 3: Verify no type assertions introduced**
 
