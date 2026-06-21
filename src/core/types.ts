@@ -8,6 +8,7 @@ export interface NormalizedSingleChoiceQuestion {
   options: QuestionOption[];
   recommendation: string | null;
   allowOther: boolean;
+  allowChat: boolean;
 }
 
 export interface NormalizedMultiChoiceQuestion {
@@ -17,6 +18,7 @@ export interface NormalizedMultiChoiceQuestion {
   prompt: string;
   options: QuestionOption[];
   recommendation: string[];
+  allowChat: boolean;
 }
 
 export type NormalizedQuestion =
