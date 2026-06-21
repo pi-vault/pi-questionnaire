@@ -18,51 +18,30 @@ export interface NormalizedMultiChoiceQuestion {
   recommendation: string[];
 }
 
-export interface NormalizedTextQuestion {
-  type: "text";
-  id: string;
-  header: string;
-  prompt: string;
-  recommendation: string | null;
-}
-
 export type NormalizedQuestion =
   | NormalizedSingleChoiceQuestion
-  | NormalizedMultiChoiceQuestion
-  | NormalizedTextQuestion;
+  | NormalizedMultiChoiceQuestion;
 
 export interface SelectedOption {
   value: string;
   label: string;
 }
 
-export interface SingleChoiceAnswer {
-  type: "single-choice";
-  questionId: string;
-  value: string;
-  label: string;
-}
+export type QuestionSelection =
+  | { kind: "option"; value: string; label: string }
+  | { kind: "options"; selected: SelectedOption[] }
+  | { kind: "custom"; value: string }
+  | { kind: "chat" };
 
-export interface MultiChoiceAnswer {
-  type: "multi-choice";
+export interface QuestionResponse {
   questionId: string;
-  selected: SelectedOption[];
+  selection: QuestionSelection;
+  notes?: string;
 }
-
-export interface TextAnswer {
-  type: "text";
-  questionId: string;
-  value: string;
-}
-
-export type NormalizedAnswer =
-  | SingleChoiceAnswer
-  | MultiChoiceAnswer
-  | TextAnswer;
 
 export interface QuestionnaireResult {
   questions: NormalizedQuestion[];
-  answers: NormalizedAnswer[];
+  responses: QuestionResponse[];
   cancelled: boolean;
   error?: string;
 }

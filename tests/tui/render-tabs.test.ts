@@ -16,11 +16,15 @@ const questions: NormalizedQuestion[] = [
     recommendation: null,
   },
   {
-    type: "text",
+    type: "multi-choice",
     id: "notes",
     header: "Notes",
-    prompt: "Type",
-    recommendation: null,
+    prompt: "Pick some",
+    options: [
+      { value: "a", label: "A" },
+      { value: "b", label: "B" },
+    ],
+    recommendation: [],
   },
 ];
 

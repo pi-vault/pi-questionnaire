@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedQuestion } from "../../src/core/types.ts";
 import {
-  initState,
-  reduce,
+  advanceToNextTab,
   allAnswered,
   answeredIds,
-  currentQuestion,
-  advanceToNextTab,
-  getSelectedValue,
   buildResult,
+  currentQuestion,
+  getSelectedValue,
+  initState,
+  reduce,
 } from "../../src/tui/state.ts";
 
 const questions: NormalizedQuestion[] = [
@@ -34,13 +34,6 @@ const questions: NormalizedQuestion[] = [
     ],
     recommendation: ["auth"],
   },
-  {
-    type: "text",
-    id: "notes",
-    header: "Notes",
-    prompt: "Any notes?",
-    recommendation: "prefilled",
-  },
 ];
 
 describe("initState", () => {
@@ -63,25 +56,6 @@ describe("initState", () => {
     expect(checked?.has("auth")).toBe(true);
     expect(checked?.has("log")).toBe(false);
   });
-
-  it("pre-populates textValues from recommendations", () => {
-    const state = initState(questions);
-    expect(state.textValues.get("notes")).toBe("prefilled");
-  });
-
-  it("does not pre-populate textValues when no recommendation", () => {
-    const noRecQuestions: NormalizedQuestion[] = [
-      {
-        type: "text",
-        id: "notes",
-        header: "Notes",
-        prompt: "Any notes?",
-        recommendation: null,
-      },
-    ];
-    const state = initState(noRecQuestions);
-    expect(state.textValues.has("notes")).toBe(false);
-  });
 });
 
 describe("allAnswered", () => {
@@ -92,21 +66,10 @@ describe("allAnswered", () => {
 
   it("returns true when all questions have answers", () => {
     const state = initState(questions);
-    state.answers.set("scope", {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
     state.answers.set("features", {
-      type: "multi-choice",
-      questionId: "features",
+      kind: "options",
       selected: [{ value: "auth", label: "Auth" }],
-    });
-    state.answers.set("notes", {
-      type: "text",
-      questionId: "notes",
-      value: "ok",
     });
     expect(allAnswered(state, questions)).toBe(true);
   });
@@ -120,12 +83,7 @@ describe("answeredIds", () => {
 
   it("returns ids of answered questions", () => {
     const state = initState(questions);
-    state.answers.set("scope", {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
     const ids = answeredIds(state);
     expect(ids.has("scope")).toBe(true);
     expect(ids.size).toBe(1);
@@ -147,33 +105,17 @@ describe("currentQuestion", () => {
 describe("advanceToNextTab", () => {
   it("advances to next unanswered question", () => {
     const state = initState(questions);
-    state.answers.set("scope", {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
     const next = advanceToNextTab(state, questions);
     expect(next).toBe(1); // features
   });
 
   it("goes to review when all answered", () => {
     const state = initState(questions);
-    state.answers.set("scope", {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
     state.answers.set("features", {
-      type: "multi-choice",
-      questionId: "features",
+      kind: "options",
       selected: [{ value: "auth", label: "Auth" }],
-    });
-    state.answers.set("notes", {
-      type: "text",
-      questionId: "notes",
-      value: "ok",
     });
     const next = advanceToNextTab(state, questions);
     expect(next).toBe(questions.length); // review tab
@@ -186,44 +128,34 @@ describe("getSelectedValue", () => {
     expect(getSelectedValue(state, "scope")).toBeNull();
   });
 
-  it("returns selected value for single-choice answer", () => {
+  it("returns selected value for option answer", () => {
     const state = initState(questions);
-    state.answers.set("scope", {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
     expect(getSelectedValue(state, "scope")).toBe("small");
   });
 });
 
 describe("buildResult", () => {
-  it("builds result with answers in question order", () => {
+  it("builds result with responses in question order", () => {
     const state = initState(questions);
-    state.answers.set("notes", {
-      type: "text",
-      questionId: "notes",
-      value: "ok",
+    state.answers.set("features", {
+      kind: "options",
+      selected: [{ value: "auth", label: "Auth" }],
     });
-    state.answers.set("scope", {
-      type: "single-choice",
-      questionId: "scope",
-      value: "small",
-      label: "Small",
-    });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
     const result = buildResult(state, questions, false);
     expect(result.cancelled).toBe(false);
-    expect(result.answers).toHaveLength(2);
-    expect(result.answers[0].questionId).toBe("scope"); // question order
-    expect(result.answers[1].questionId).toBe("notes");
+    expect(result.responses).toHaveLength(2);
+    expect(result.responses[0].questionId).toBe("scope"); // question order
+    expect(result.responses[0].selection).toEqual({ kind: "option", value: "small", label: "Small" });
+    expect(result.responses[1].questionId).toBe("features");
   });
 
   it("builds cancelled result", () => {
     const state = initState(questions);
     const result = buildResult(state, questions, true);
     expect(result.cancelled).toBe(true);
-    expect(result.answers).toHaveLength(0);
+    expect(result.responses).toHaveLength(0);
   });
 });
 
@@ -245,62 +177,41 @@ describe("reduce", () => {
 
   it("moveCursor up decrements optionCursor", () => {
     const state = { ...initState(questions), optionCursor: 1 };
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "up" },
-      questions,
-    );
+    const next = reduce(state, { type: "moveCursor", direction: "up" }, questions);
     expect(next.optionCursor).toBe(0);
   });
 
   it("moveCursor down increments optionCursor", () => {
     const state = initState(questions);
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "down" },
-      questions,
-    );
+    const next = reduce(state, { type: "moveCursor", direction: "down" }, questions);
     expect(next.optionCursor).toBe(1);
   });
 
   it("moveCursor clamps at bounds", () => {
     const state = initState(questions);
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "up" },
-      questions,
-    );
+    const next = reduce(state, { type: "moveCursor", direction: "up" }, questions);
     expect(next.optionCursor).toBe(0);
   });
 
   it("moveCursor on review tab moves reviewCursor", () => {
     const state = { ...initState(questions), activeTab: questions.length };
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "down" },
-      questions,
-    );
+    const next = reduce(state, { type: "moveCursor", direction: "down" }, questions);
     expect(next.reviewCursor).toBe(1);
   });
 
-  it("selectOption records answer and advances", () => {
+  it("selectOption records answer as option selection and advances", () => {
     const state = initState(questions);
     const next = reduce(
       state,
-      {
-        type: "selectOption",
-        questionId: "scope",
-        value: "small",
-        label: "Small",
-      },
+      { type: "selectOption", questionId: "scope", value: "small", label: "Small" },
       questions,
     );
     const answer = next.answers.get("scope");
-    expect(answer?.type).toBe("single-choice");
+    expect(answer?.kind).toBe("option");
     expect(next.activeTab).toBe(1); // advanced to next unanswered
   });
 
-  it("toggleCheckbox adds value and syncs answer", () => {
+  it("toggleCheckbox adds value and syncs answer as options selection", () => {
     const state = initState(questions);
     const next = reduce(
       state,
@@ -310,8 +221,8 @@ describe("reduce", () => {
     expect(next.multiChecked.get("features")?.has("log")).toBe(true);
     expect(next.multiChecked.get("features")?.has("auth")).toBe(true); // from recommendation
     const answer = next.answers.get("features");
-    expect(answer?.type).toBe("multi-choice");
-    if (answer?.type === "multi-choice") {
+    expect(answer?.kind).toBe("options");
+    if (answer?.kind === "options") {
       expect(answer.selected).toHaveLength(2);
     }
   });
@@ -328,27 +239,8 @@ describe("reduce", () => {
     expect(next.answers.has("features")).toBe(false);
   });
 
-  it("submitText records text answer", () => {
-    const state = initState(questions);
-    const next = reduce(
-      state,
-      { type: "submitText", questionId: "notes", value: "my notes" },
-      questions,
-    );
-    expect(next.textValues.get("notes")).toBe("my notes");
-    const answer = next.answers.get("notes");
-    expect(answer?.type).toBe("text");
-    if (answer?.type === "text") {
-      expect(answer.value).toBe("my notes");
-    }
-  });
-
   it("resetCursors zeros both cursors", () => {
-    const state = {
-      ...initState(questions),
-      optionCursor: 3,
-      reviewCursor: 2,
-    };
+    const state = { ...initState(questions), optionCursor: 3, reviewCursor: 2 };
     const next = reduce(state, { type: "resetCursors" }, questions);
     expect(next.optionCursor).toBe(0);
     expect(next.reviewCursor).toBe(0);
@@ -357,21 +249,13 @@ describe("reduce", () => {
   it("moveCursor down clamps at last option", () => {
     const state = { ...initState(questions), optionCursor: 1 };
     // scope has 2 options, so max index is 1
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "down" },
-      questions,
-    );
+    const next = reduce(state, { type: "moveCursor", direction: "down" }, questions);
     expect(next.optionCursor).toBe(1);
   });
 
   it("moveCursor on review tab clamps reviewCursor at 0", () => {
     const state = { ...initState(questions), activeTab: questions.length };
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "up" },
-      questions,
-    );
+    const next = reduce(state, { type: "moveCursor", direction: "up" }, questions);
     expect(next.reviewCursor).toBe(0);
   });
 
@@ -381,34 +265,19 @@ describe("reduce", () => {
       activeTab: questions.length,
       reviewCursor: questions.length - 1,
     };
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "down" },
-      questions,
-    );
+    const next = reduce(state, { type: "moveCursor", direction: "down" }, questions);
     expect(next.reviewCursor).toBe(questions.length - 1);
   });
 
   it("selectOption advances to review when all answered", () => {
     const state = initState(questions);
     state.answers.set("features", {
-      type: "multi-choice",
-      questionId: "features",
+      kind: "options",
       selected: [{ value: "auth", label: "Auth" }],
-    });
-    state.answers.set("notes", {
-      type: "text",
-      questionId: "notes",
-      value: "ok",
     });
     const next = reduce(
       state,
-      {
-        type: "selectOption",
-        questionId: "scope",
-        value: "small",
-        label: "Small",
-      },
+      { type: "selectOption", questionId: "scope", value: "small", label: "Small" },
       questions,
     );
     expect(next.activeTab).toBe(questions.length); // review tab
@@ -418,12 +287,7 @@ describe("reduce", () => {
     const state = { ...initState(questions), optionCursor: 1 };
     const next = reduce(
       state,
-      {
-        type: "selectOption",
-        questionId: "scope",
-        value: "small",
-        label: "Small",
-      },
+      { type: "selectOption", questionId: "scope", value: "small", label: "Small" },
       questions,
     );
     expect(next.optionCursor).toBe(0);
@@ -438,35 +302,10 @@ describe("reduce", () => {
       questions,
     );
     const answer = next.answers.get("features");
-    if (answer?.type === "multi-choice") {
+    if (answer?.kind === "options") {
       // auth (from recommendation) comes before log in options array
       expect(answer.selected[0].value).toBe("auth");
       expect(answer.selected[1].value).toBe("log");
     }
-  });
-
-  it("submitText overwrites previous text value", () => {
-    const state = initState(questions);
-    let next = reduce(
-      state,
-      { type: "submitText", questionId: "notes", value: "first" },
-      questions,
-    );
-    next = reduce(
-      next,
-      { type: "submitText", questionId: "notes", value: "second" },
-      questions,
-    );
-    expect(next.textValues.get("notes")).toBe("second");
-  });
-
-  it("moveCursor ignores text questions", () => {
-    const state = { ...initState(questions), activeTab: 2 }; // text tab
-    const next = reduce(
-      state,
-      { type: "moveCursor", direction: "down" },
-      questions,
-    );
-    expect(next.optionCursor).toBe(0); // unchanged
   });
 });

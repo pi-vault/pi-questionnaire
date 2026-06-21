@@ -51,22 +51,9 @@ export const MultiChoiceQuestionSchema = Type.Object({
   ),
 });
 
-export const TextQuestionSchema = Type.Object({
-  type: Type.Literal("text"),
-  id: Type.String({ description: "Unique question identifier" }),
-  header: Type.String({
-    description: "Short label shown in tabs and summaries",
-  }),
-  prompt: Type.String({ description: "Full question text shown to the user" }),
-  recommendation: Type.Optional(
-    Type.String({ description: "Prefilled editor value" }),
-  ),
-});
-
 const QuestionSchema = Type.Union([
   SingleChoiceQuestionSchema,
   MultiChoiceQuestionSchema,
-  TextQuestionSchema,
 ]);
 
 export const QuestionnaireParamsSchema = Type.Object({
@@ -83,5 +70,4 @@ export type SingleChoiceQuestionInput = Static<
   typeof SingleChoiceQuestionSchema
 >;
 export type MultiChoiceQuestionInput = Static<typeof MultiChoiceQuestionSchema>;
-export type TextQuestionInput = Static<typeof TextQuestionSchema>;
 export type QuestionInput = Static<typeof QuestionSchema>;

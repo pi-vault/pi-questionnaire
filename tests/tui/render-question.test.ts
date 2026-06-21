@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import type {
   NormalizedSingleChoiceQuestion,
   NormalizedMultiChoiceQuestion,
-  NormalizedTextQuestion,
 } from "../../src/core/types.ts";
 import {
   renderSingleChoiceQuestion,
   renderMultiChoiceQuestion,
-  renderTextQuestion,
 } from "../../src/tui/render-question.ts";
 import { noopTheme } from "../helpers/theme.ts";
 
@@ -141,28 +139,5 @@ describe("renderMultiChoiceQuestion", () => {
     );
     const text = lines.join("\n");
     expect(text).toContain("[recommended]");
-  });
-});
-
-describe("renderTextQuestion", () => {
-  const question: NormalizedTextQuestion = {
-    type: "text",
-    id: "notes",
-    header: "Notes",
-    prompt: "Any notes?",
-    recommendation: null,
-  };
-
-  it("renders prompt", () => {
-    const lines = renderTextQuestion(question, [], noopTheme, 80);
-    const text = lines.join("\n");
-    expect(text).toContain("Any notes?");
-  });
-
-  it("includes editor lines", () => {
-    const editorLines = ["| some text |"];
-    const lines = renderTextQuestion(question, editorLines, noopTheme, 80);
-    const text = lines.join("\n");
-    expect(text).toContain("| some text |");
   });
 });

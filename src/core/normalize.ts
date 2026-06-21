@@ -3,7 +3,6 @@ import type {
   NormalizedMultiChoiceQuestion,
   NormalizedQuestion,
   NormalizedSingleChoiceQuestion,
-  NormalizedTextQuestion,
 } from "./types.ts";
 
 function normalizeOptions(options: QuestionOption[]): QuestionOption[] {
@@ -40,24 +39,11 @@ function normalizeMultiChoice(
   };
 }
 
-function normalizeText(
-  q: QuestionInput & { type: "text" },
-): NormalizedTextQuestion {
-  return {
-    type: "text",
-    id: q.id.trim(),
-    header: q.header.trim(),
-    prompt: q.prompt.trim(),
-    recommendation: q.recommendation?.trim() || null,
-  };
-}
-
 export function normalizeQuestions(
   questions: QuestionInput[],
 ): NormalizedQuestion[] {
   return questions.map((q) => {
     if (q.type === "single-choice") return normalizeSingleChoice(q);
-    if (q.type === "multi-choice") return normalizeMultiChoice(q);
-    return normalizeText(q);
+    return normalizeMultiChoice(q);
   });
 }

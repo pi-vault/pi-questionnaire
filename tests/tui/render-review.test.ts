@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
-  NormalizedAnswer,
   NormalizedQuestion,
+  QuestionSelection,
 } from "../../src/core/types.ts";
 import { renderReviewScreen } from "../../src/tui/render-review.ts";
 import { noopTheme } from "../helpers/theme.ts";
@@ -19,26 +19,22 @@ const questions: NormalizedQuestion[] = [
     recommendation: null,
   },
   {
-    type: "text",
-    id: "notes",
-    header: "Notes",
-    prompt: "Type",
-    recommendation: null,
+    type: "multi-choice",
+    id: "features",
+    header: "Features",
+    prompt: "Pick features",
+    options: [
+      { value: "auth", label: "Auth" },
+      { value: "log", label: "Logging" },
+    ],
+    recommendation: [],
   },
 ];
 
 describe("renderReviewScreen", () => {
   it("shows answered and unanswered rows", () => {
-    const answers = new Map<string, NormalizedAnswer>([
-      [
-        "scope",
-        {
-          type: "single-choice",
-          questionId: "scope",
-          value: "small",
-          label: "Small",
-        },
-      ],
+    const answers = new Map<string, QuestionSelection>([
+      ["scope", { kind: "option", value: "small", label: "Small" }],
     ]);
     const lines = renderReviewScreen(questions, answers, 0, noopTheme, 80);
     const text = lines.join("\n");
@@ -48,17 +44,15 @@ describe("renderReviewScreen", () => {
   });
 
   it("shows submit prompt when all answered", () => {
-    const answers = new Map<string, NormalizedAnswer>([
+    const answers = new Map<string, QuestionSelection>([
+      ["scope", { kind: "option", value: "small", label: "Small" }],
       [
-        "scope",
+        "features",
         {
-          type: "single-choice",
-          questionId: "scope",
-          value: "small",
-          label: "Small",
+          kind: "options",
+          selected: [{ value: "auth", label: "Auth" }],
         },
       ],
-      ["notes", { type: "text", questionId: "notes", value: "ok" }],
     ]);
     const lines = renderReviewScreen(questions, answers, 0, noopTheme, 80);
     const text = lines.join("\n");
@@ -66,7 +60,7 @@ describe("renderReviewScreen", () => {
   });
 
   it("shows warning when not all answered", () => {
-    const answers = new Map<string, NormalizedAnswer>();
+    const answers = new Map<string, QuestionSelection>();
     const lines = renderReviewScreen(questions, answers, 0, noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Answer all questions");

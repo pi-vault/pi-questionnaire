@@ -34,18 +34,6 @@ function multiQ(
   };
 }
 
-function textQ(
-  overrides: Partial<QuestionInput & { type: "text" }> = {},
-): QuestionInput {
-  return {
-    type: "text",
-    id: "q1",
-    header: "Q1",
-    prompt: "Type something",
-    ...overrides,
-  };
-}
-
 describe("validateQuestions", () => {
   it("accepts a valid single choice question", () => {
     const result = validateQuestions([choiceQ()]);
@@ -54,11 +42,6 @@ describe("validateQuestions", () => {
 
   it("accepts a valid multi-choice question", () => {
     const result = validateQuestions([multiQ()]);
-    expect(result).toEqual({ valid: true });
-  });
-
-  it("accepts a valid text question", () => {
-    const result = validateQuestions([textQ()]);
     expect(result).toEqual({ valid: true });
   });
 
@@ -82,7 +65,7 @@ describe("validateQuestions", () => {
   it("rejects duplicate question ids", () => {
     const result = validateQuestions([
       choiceQ({ id: "dup" }),
-      textQ({ id: "dup" }),
+      multiQ({ id: "dup" }),
     ]);
     expect(result).toEqual({
       valid: false,
@@ -204,10 +187,5 @@ describe("validateQuestions", () => {
       error:
         'Question "q1" recommendation "nope" does not match any option value.',
     });
-  });
-
-  it("does not validate recommendation for text questions", () => {
-    const result = validateQuestions([textQ({ recommendation: "anything" })]);
-    expect(result).toEqual({ valid: true });
   });
 });

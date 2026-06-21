@@ -85,32 +85,6 @@ describe("normalizeQuestions", () => {
     }
   });
 
-  it("normalizes text question with recommendation", () => {
-    const input: QuestionInput[] = [
-      {
-        type: "text",
-        id: "notes",
-        header: "Notes",
-        prompt: "Type something",
-        recommendation: "  default  ",
-      },
-    ];
-    const result = normalizeQuestions(input);
-    if (result[0].type === "text") {
-      expect(result[0].recommendation).toBe("default");
-    }
-  });
-
-  it("sets text recommendation to null when not provided", () => {
-    const input: QuestionInput[] = [
-      { type: "text", id: "notes", header: "Notes", prompt: "Type" },
-    ];
-    const result = normalizeQuestions(input);
-    if (result[0].type === "text") {
-      expect(result[0].recommendation).toBeNull();
-    }
-  });
-
   it("strips undefined descriptions from options", () => {
     const input: QuestionInput[] = [
       {

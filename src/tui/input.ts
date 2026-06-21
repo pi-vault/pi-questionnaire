@@ -10,7 +10,6 @@ import {
 export type InputResult =
   | { type: "action"; action: Action }
   | { type: "finalize"; cancelled: boolean }
-  | { type: "forward-to-editor" }
   | { type: "none" };
 
 function action(a: Action): InputResult {
@@ -26,8 +25,8 @@ export function mapInput(
   const totalTabs = questions.length + 1;
   const q = currentQuestion(state, questions);
 
-  // Global Esc (non-text questions)
-  if (q?.type !== "text" && matchesKey(data, Key.escape)) {
+  // Global Esc
+  if (matchesKey(data, Key.escape)) {
     return { type: "finalize", cancelled: true };
   }
 
@@ -45,20 +44,18 @@ export function mapInput(
     });
   }
 
-  // Left/Right navigate tabs (non-text questions only)
-  if (q?.type !== "text") {
-    if (matchesKey(data, Key.right)) {
-      return action({
-        type: "switchTab",
-        tab: (state.activeTab + 1) % totalTabs,
-      });
-    }
-    if (matchesKey(data, Key.left)) {
-      return action({
-        type: "switchTab",
-        tab: (state.activeTab - 1 + totalTabs) % totalTabs,
-      });
-    }
+  // Left/Right navigate tabs
+  if (matchesKey(data, Key.right)) {
+    return action({
+      type: "switchTab",
+      tab: (state.activeTab + 1) % totalTabs,
+    });
+  }
+  if (matchesKey(data, Key.left)) {
+    return action({
+      type: "switchTab",
+      tab: (state.activeTab - 1 + totalTabs) % totalTabs,
+    });
   }
 
   // Review tab
@@ -103,33 +100,22 @@ export function mapInput(
   }
 
   // Multi-choice
-  if (q.type === "multi-choice") {
-    if (matchesKey(data, Key.up)) {
-      return action({ type: "moveCursor", direction: "up" });
-    }
-    if (matchesKey(data, Key.down)) {
-      return action({ type: "moveCursor", direction: "down" });
-    }
-    if (matchesKey(data, Key.space)) {
-      const opt = q.options[state.optionCursor];
-      return action({
-        type: "toggleCheckbox",
-        questionId: q.id,
-        value: opt.value,
-      });
-    }
-    if (matchesKey(data, Key.enter)) {
-      return { type: "none" }; // confirm (no-op, answer already synced)
-    }
-    return { type: "none" };
+  if (matchesKey(data, Key.up)) {
+    return action({ type: "moveCursor", direction: "up" });
   }
-
-  // Text
-  if (q.type === "text") {
-    if (matchesKey(data, Key.escape)) {
-      return { type: "finalize", cancelled: true };
-    }
-    return { type: "forward-to-editor" };
+  if (matchesKey(data, Key.down)) {
+    return action({ type: "moveCursor", direction: "down" });
+  }
+  if (matchesKey(data, Key.space)) {
+    const opt = q.options[state.optionCursor];
+    return action({
+      type: "toggleCheckbox",
+      questionId: q.id,
+      value: opt.value,
+    });
+  }
+  if (matchesKey(data, Key.enter)) {
+    return { type: "none" }; // confirm (no-op, answer already synced)
   }
 
   return { type: "none" };
