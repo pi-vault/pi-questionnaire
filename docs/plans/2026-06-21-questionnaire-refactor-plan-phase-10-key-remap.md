@@ -14,7 +14,7 @@
 
 ---
 
-Remap tab-navigation from Tab/Shift+Tab to Left/Right. Tab becomes unbound (reserved for Phase 13 notes). Left/Right now works on all question types.
+Remap tab-navigation from Tab/Shift+Tab to Left/Right. Tab becomes unbound (reserved for Phase 13 notes). Left/Right already exists for tab navigation; this phase removes the redundant Tab/Shift+Tab bindings and updates hint text.
 
 ### Task 10.1: Update Input Mapping
 
@@ -23,134 +23,19 @@ Remap tab-navigation from Tab/Shift+Tab to Left/Right. Tab becomes unbound (rese
 - Modify: `src/tui/input.ts`
 - Test: `tests/tui/input.test.ts`
 
-- [ ] **Step 1: Rewrite key routing in `mapInput`**
+- [ ] **Step 1: Remove Tab/Shift+Tab bindings from `mapInput`**
 
-Replace Tab/Shift+Tab tab-navigation with Left/Right. Remove the Tab/Shift+Tab bindings. Left/Right now always does tab navigation (they were previously guarded by `q?.type !== "text"` which is gone).
+Delete the Tab/Shift+Tab block (the `// Tab navigation (always intercepted)` section, currently lines 33-45). Left/Right tab navigation already exists immediately below and is kept as-is. No other source changes needed — the rest of the function stays the same.
 
-Updated `mapInput`:
+- [ ] **Step 2: Remove Tab/Shift+Tab tests**
 
-```ts
-import { Key, matchesKey } from "@earendil-works/pi-tui";
-import type { NormalizedQuestion } from "../core/types.ts";
-import {
-  type Action,
-  type QuestionnaireState,
-  allAnswered,
-  currentQuestion,
-} from "./state.ts";
+In `tests/tui/input.test.ts`, delete these three test cases:
 
-export type InputResult =
-  | { type: "action"; action: Action }
-  | { type: "finalize"; cancelled: boolean }
-  | { type: "none" };
+- `"Tab returns switchTab to next"` (lines 38-48)
+- `"Shift+Tab returns switchTab to previous"` (lines 169-176)
+- `"Shift+Tab wraps from first tab to review"` (lines 178-188)
 
-function action(a: Action): InputResult {
-  return { type: "action", action: a };
-}
-
-export function mapInput(
-  data: string,
-  state: QuestionnaireState,
-  questions: NormalizedQuestion[],
-): InputResult {
-  const reviewTabIndex = questions.length;
-  const totalTabs = questions.length + 1;
-  const q = currentQuestion(state, questions);
-
-  // Global Esc
-  if (matchesKey(data, Key.escape)) {
-    return { type: "finalize", cancelled: true };
-  }
-
-  // Tab navigation via Left/Right
-  if (matchesKey(data, Key.right)) {
-    return action({
-      type: "switchTab",
-      tab: (state.activeTab + 1) % totalTabs,
-    });
-  }
-  if (matchesKey(data, Key.left)) {
-    return action({
-      type: "switchTab",
-      tab: (state.activeTab - 1 + totalTabs) % totalTabs,
-    });
-  }
-
-  // Review tab
-  if (state.activeTab === reviewTabIndex) {
-    if (matchesKey(data, Key.up)) {
-      return action({ type: "moveCursor", direction: "up" });
-    }
-    if (matchesKey(data, Key.down)) {
-      return action({ type: "moveCursor", direction: "down" });
-    }
-    if (matchesKey(data, Key.enter) && allAnswered(state, questions)) {
-      return { type: "finalize", cancelled: false };
-    }
-    if (matchesKey(data, Key.space) || matchesKey(data, Key.enter)) {
-      if (state.reviewCursor < questions.length) {
-        return action({ type: "switchTab", tab: state.reviewCursor });
-      }
-    }
-    return { type: "none" };
-  }
-
-  if (!q) return { type: "none" };
-
-  // Single-choice
-  if (q.type === "single-choice") {
-    if (matchesKey(data, Key.up)) {
-      return action({ type: "moveCursor", direction: "up" });
-    }
-    if (matchesKey(data, Key.down)) {
-      return action({ type: "moveCursor", direction: "down" });
-    }
-    if (matchesKey(data, Key.enter) || matchesKey(data, Key.space)) {
-      const opt = q.options[state.optionCursor];
-      return action({
-        type: "selectOption",
-        questionId: q.id,
-        value: opt.value,
-        label: opt.label,
-      });
-    }
-    return { type: "none" };
-  }
-
-  // Multi-choice
-  if (q.type === "multi-choice") {
-    if (matchesKey(data, Key.up)) {
-      return action({ type: "moveCursor", direction: "up" });
-    }
-    if (matchesKey(data, Key.down)) {
-      return action({ type: "moveCursor", direction: "down" });
-    }
-    if (matchesKey(data, Key.space)) {
-      const opt = q.options[state.optionCursor];
-      return action({
-        type: "toggleCheckbox",
-        questionId: q.id,
-        value: opt.value,
-      });
-    }
-    if (matchesKey(data, Key.enter)) {
-      return { type: "none" };
-    }
-    return { type: "none" };
-  }
-
-  return { type: "none" };
-}
-```
-
-- [ ] **Step 2: Update tests**
-
-In `tests/tui/input.test.ts`:
-
-- Replace all Tab key tests with Left/Right key tests for tab navigation
-- Remove Shift+Tab tests, replace with Left key tests
-- Remove any `q?.type !== "text"` conditional test logic
-- Verify Left/Right switches tabs on both single-choice and multi-choice
+The existing Left/Right arrow tests (lines 190-218) already cover tab navigation and remain unchanged.
 
 - [ ] **Step 3: Run tests**
 
@@ -166,12 +51,12 @@ Expected: PASS
 
 - [ ] **Step 1: Update hint text in `render.ts`**
 
-Change the hint strings to reflect new key mapping:
+Replace the current hint block (lines 83-88) with updated key labels. The review hint keeps Up/Down and Space since they still work on that screen:
 
 ```ts
 const hint =
   state.activeTab === reviewTabIndex
-    ? "Left/Right tabs | Enter submit | Space edit | Esc cancel"
+    ? "Left/Right tabs | Up/Down move | Space jump | Enter submit | Esc cancel"
     : q?.type === "multi-choice"
       ? "Left/Right tabs | Up/Down move | Space toggle | Esc cancel"
       : "Left/Right tabs | Up/Down move | Space/Enter select | Esc cancel";
@@ -179,7 +64,7 @@ const hint =
 
 - [ ] **Step 2: Update render tests**
 
-Update any hint-bar assertions to match new key labels.
+In `tests/tui/render.test.ts`, the `"includes hint bar for choice questions"` test asserts `toContain("Space/Enter select")` which still passes with the new text. No test changes needed.
 
 - [ ] **Step 3: Run full check**
 

@@ -30,20 +30,6 @@ export function mapInput(
     return { type: "finalize", cancelled: true };
   }
 
-  // Tab navigation (always intercepted)
-  if (matchesKey(data, Key.tab)) {
-    return action({
-      type: "switchTab",
-      tab: (state.activeTab + 1) % totalTabs,
-    });
-  }
-  if (matchesKey(data, Key.shift("tab"))) {
-    return action({
-      type: "switchTab",
-      tab: (state.activeTab - 1 + totalTabs) % totalTabs,
-    });
-  }
-
   // Left/Right navigate tabs
   if (matchesKey(data, Key.right)) {
     return action({
