@@ -120,7 +120,16 @@ No actual code change needed in validate.ts — the `if` block already handles o
 
 - [ ] **Step 2: Update tests in `tests/core/validate.test.ts`**
 
-Remove any test cases that use `type: "text"` questions. Search for `"text"` in the test file and remove those test blocks. Keep all single-choice and multi-choice tests unchanged.
+Remove the `textQ` helper function. Remove test cases that only test text questions:
+
+- "accepts a valid text question"
+- "does not validate recommendation for text questions"
+
+Update tests that use `textQ` for non-text-specific purposes:
+
+- "rejects duplicate question ids" — replace `textQ({ id: "dup" })` with `multiQ({ id: "dup" })`
+
+Keep all single-choice and multi-choice tests unchanged.
 
 - [ ] **Step 3: Run tests**
 
@@ -556,13 +565,35 @@ Key changes:
 
 - [ ] **Step 2: Update `tests/tui/state.test.ts`**
 
-Update all test assertions that reference `NormalizedAnswer` shapes to use `QuestionSelection` shapes. For example, where tests check `state.answers.get("scope")` expecting `{ type: "single-choice", ... }`, change to `{ kind: "option", ... }`.
+**Fixture change:** Remove the text question (`id: "notes"`) from the `questions` array. This changes `questions.length` from 3 to 2, which shifts the review tab index from 3 to 2.
 
-Remove all test cases for `submitText` action and `textValues`.
+**Remove tests:**
 
-Remove text question fixtures from the `questions` array used in tests.
+- "pre-populates textValues from recommendations"
+- "does not pre-populate textValues when no recommendation"
+- "submitText records text answer"
+- "submitText overwrites previous text value"
+- "moveCursor ignores text questions"
 
-Update `buildResult` test assertions from `answers: [...]` to `responses: [...]` with new shapes.
+**Update answer shapes** throughout — replace `NormalizedAnswer` shapes with `QuestionSelection` shapes:
+
+- `{ type: "single-choice", questionId: "scope", value: "small", label: "Small" }` → `{ kind: "option", value: "small", label: "Small" }`
+- `{ type: "multi-choice", questionId: "features", selected: [...] }` → `{ kind: "options", selected: [...] }`
+- Remove any `{ type: "text", ... }` answer entries
+
+**Update tests that fill all answers** (since there are now 2 questions, not 3):
+
+- "returns true when all questions have answers" — remove the `notes` answer, keep `scope` and `features`
+- "goes to review when all answered" — remove the `notes` answer
+- "selectOption advances to review when all answered" — remove the `notes` answer
+- "moveCursor on review tab clamps at last question" — `questions.length - 1` is now 1, not 2
+
+**Update `buildResult` assertions:**
+
+- Change `result.answers` to `result.responses`
+- Update response shapes from `{ type: "...", questionId: "..." }` to `{ questionId: "...", selection: { kind: "..." } }`
+
+**Update `selectOption` assertion:** The `answer?.type` check becomes `answer?.kind` — e.g., `expect(answer?.kind).toBe("option")`.
 
 - [ ] **Step 3: Run tests**
 
@@ -591,7 +622,21 @@ Also remove the condition `q?.type !== "text"` from the Esc handler (line 30) an
 
 - [ ] **Step 2: Update `tests/tui/input.test.ts`**
 
-Remove all test cases for text question input (the `"text"` describe block and any text question fixtures). Remove tests for `forward-to-editor` result type.
+**Fixture change:** Remove the text question (`id: "notes"`) from the `questions` array. This changes `questions.length` from 3 to 2 (review tab index becomes 2).
+
+**Remove tests:**
+
+- "text question forwards non-nav keys to editor"
+- "Esc on text question returns finalize cancelled"
+- "Tab on text question still switches tabs"
+- "Left arrow on text question forwards to editor"
+- "Right arrow on text question forwards to editor"
+
+**Update tests that fill all answers** for review submission (now need 2 answers, not 3):
+
+- "Enter on review with all answered returns finalize submitted" — remove the `notes` answer entry
+
+**No other changes** — review tab navigation tests already use `questions.length` dynamically.
 
 - [ ] **Step 3: Run tests**
 
@@ -740,11 +785,26 @@ export async function runQuestionnaireUI(
 
 - [ ] **Step 5: Update render tests**
 
-Update test fixtures in `tests/tui/render.test.ts`, `tests/tui/render-question.test.ts`, and `tests/tui/render-review.test.ts`:
+**`tests/tui/render-question.test.ts`:**
 
-- Remove text question fixtures and test cases
-- Update `renderQuestionnaire` calls to remove `editorLines` parameter
-- Update review screen tests for new `QuestionSelection` type
+- Remove `NormalizedTextQuestion` import and `renderTextQuestion` import
+- Remove the entire `"renderTextQuestion"` describe block (lines 147-168)
+- Keep `renderSingleChoiceQuestion` and `renderMultiChoiceQuestion` tests unchanged
+
+**`tests/tui/render.test.ts`:**
+
+- **Fixture change:** Remove the text question from the `questions` array (currently has `[single-choice, text]`). Replace it with a multi-choice question so the fixture has 2 questions (keeps review tab tests meaningful).
+- Remove `editorLines` parameter from ALL `renderQuestionnaire` calls — signature is now `(state, questions, theme, width)`
+- Remove tests: "renders text question with editor lines", "does not include choice hint bar for text questions"
+- Update remaining tests to match the new 4-parameter signature
+
+**`tests/tui/render-review.test.ts`:**
+
+- **Fixture change:** Replace the text question with a multi-choice question so the fixture has 2 questions
+- Change `NormalizedAnswer` type import to `QuestionSelection` from types
+- Update `Map<string, NormalizedAnswer>` to `Map<string, QuestionSelection>`
+- Update answer entries from `{ type: "single-choice", questionId: "scope", value: "small", label: "Small" }` to `{ kind: "option", value: "small", label: "Small" }`
+- Replace the text answer entry (`{ type: "text", ... }`) with a multi-choice selection (`{ kind: "options", selected: [...] }`)
 
 - [ ] **Step 6: Run all render tests**
 
@@ -824,7 +884,7 @@ Also update `errorResult` to use `responses: []` instead of `answers: []`.
 
 - [ ] **Step 3: Update `tests/index.test.ts`**
 
-Remove text-question test cases, update result assertions for new shape.
+No changes needed — the existing tests only check export type and tool registration name, which are unaffected by this phase.
 
 - [ ] **Step 4: Run full check**
 
@@ -837,4 +897,3 @@ Expected: All lint, typecheck, and tests pass.
 git add src/ tests/
 git commit -m "refactor: remove text question type, introduce QuestionResponse result shape"
 ```
-
