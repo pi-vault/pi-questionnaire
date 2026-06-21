@@ -25,6 +25,7 @@ Evolve the existing state machine (Approach A). The Phase 8 architecture (pure-f
 ### 1. Types & Schema
 
 **Removed:**
+
 - `NormalizedTextQuestion` type and `TextAnswer` type
 - `TextQuestionSchema` from the schema union
 - `submitText` action
@@ -46,10 +47,10 @@ allowChat?: boolean;   // default true — appends "Chat about this" sentinel
 
 ```ts
 type QuestionSelection =
-  | { kind: "option"; value: string; label: string }    // single-choice picked option
-  | { kind: "options"; selected: SelectedOption[] }      // multi-choice picked options
-  | { kind: "custom"; value: string }                    // "Type something." text
-  | { kind: "chat" };                                    // "Chat about this" signal
+  | { kind: "option"; value: string; label: string } // single-choice picked option
+  | { kind: "options"; selected: SelectedOption[] } // multi-choice picked options
+  | { kind: "custom"; value: string } // "Type something." text
+  | { kind: "chat" }; // "Chat about this" signal
 
 interface QuestionResponse {
   questionId: string;
@@ -79,10 +80,10 @@ interface QuestionnaireState {
   reviewCursor: number;
   answers: Map<string, QuestionSelection>;
   multiChecked: Map<string, Set<string>>;
-  notes: Map<string, string>;              // per-question notes
+  notes: Map<string, string>; // per-question notes
   inputMode: "navigate" | "typing" | "notes";
   editingQuestionId: string | null;
-  customText: Map<string, string>;         // typed text per question, persisted across tab switches
+  customText: Map<string, string>; // typed text per question, persisted across tab switches
 }
 ```
 
@@ -103,6 +104,7 @@ Removed: `submitText`.
 **Visible rows per question type:**
 
 Single-choice:
+
 ```
 1. Option A
 2. Option B
@@ -111,6 +113,7 @@ Single-choice:
 ```
 
 Multi-choice:
+
 ```
 [x] 1. Option A
 [ ] 2. Option B
@@ -131,6 +134,7 @@ Multi-choice:
 ### 3. Input Mapping (Key Routing)
 
 **Key remapping:**
+
 - Left/Right replaces Tab/Shift+Tab for tab navigation
 - Tab opens notes editor (only if question has a selection)
 - Shift+Tab is unbound
@@ -138,44 +142,44 @@ Multi-choice:
 
 **Navigate mode — question screen:**
 
-| Key | Action |
-|---|---|
-| Up/Down | Move cursor through options + sentinels |
-| Left/Right | Switch tab (wrapping) |
+| Key         | Action                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| Up/Down     | Move cursor through options + sentinels                                                     |
+| Left/Right  | Switch tab (wrapping)                                                                       |
 | Space/Enter | Select option (single), toggle checkbox (multi), enter typing, select chat, or confirm Next |
-| Tab | Open notes editor (only if question has a selection) |
-| Esc | Cancel questionnaire |
+| Tab         | Open notes editor (only if question has a selection)                                        |
+| Esc         | Cancel questionnaire                                                                        |
 
 **Typing mode** (inline editor for "Type something."):
 
-| Key | Action |
-|---|---|
-| Enter | Submit typed text as answer, auto-advance |
-| Esc | Cancel typing, return to navigate |
-| Up/Down | Cancel typing, return to navigate, move cursor |
-| Left/Right | Forward to editor (text cursor movement) |
-| All other | Forward to editor |
+| Key        | Action                                         |
+| ---------- | ---------------------------------------------- |
+| Enter      | Submit typed text as answer, auto-advance      |
+| Esc        | Cancel typing, return to navigate              |
+| Up/Down    | Cancel typing, return to navigate, move cursor |
+| Left/Right | Forward to editor (text cursor movement)       |
+| All other  | Forward to editor                              |
 
 **Notes mode** (inline editor for per-question note):
 
-| Key | Action |
-|---|---|
-| Enter | Save note, return to navigate |
-| Esc | Discard unsaved edits, return to navigate |
-| Up/Down | Save note, return to navigate, move cursor |
-| Left/Right | Forward to editor (text cursor movement) |
-| All other | Forward to editor |
+| Key        | Action                                     |
+| ---------- | ------------------------------------------ |
+| Enter      | Save note, return to navigate              |
+| Esc        | Discard unsaved edits, return to navigate  |
+| Up/Down    | Save note, return to navigate, move cursor |
+| Left/Right | Forward to editor (text cursor movement)   |
+| All other  | Forward to editor                          |
 
 **Navigate mode — review screen:**
 
-| Key | Action |
-|---|---|
-| Up/Down | Move review cursor |
-| Left/Right | Switch tab (wrapping) |
-| Space/Enter on row | Jump to that question's tab |
-| Enter (all answered) | Submit questionnaire |
-| Tab | No-op |
-| Esc | Cancel questionnaire |
+| Key                  | Action                      |
+| -------------------- | --------------------------- |
+| Up/Down              | Move review cursor          |
+| Left/Right           | Switch tab (wrapping)       |
+| Space/Enter on row   | Jump to that question's tab |
+| Enter (all answered) | Submit questionnaire        |
+| Tab                  | No-op                       |
+| Esc                  | Cancel questionnaire        |
 
 **InputResult type:**
 
@@ -253,13 +257,13 @@ Notes mode — inline editor below options:
 
 **Hint bar per context:**
 
-| Context | Hint |
-|---|---|
+| Context                  | Hint                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------- |
 | Navigate (single-choice) | `Left/Right tabs \| Up/Down select \| Enter confirm \| Tab notes \| Esc cancel` |
-| Navigate (multi-choice) | `Left/Right tabs \| Up/Down select \| Space toggle \| Tab notes \| Esc cancel` |
-| Typing | `Enter submit \| Esc cancel \| Up/Down exit` |
-| Notes | `Enter save \| Esc discard` |
-| Review | `Left/Right tabs \| Up/Down select \| Enter submit \| Esc cancel` |
+| Navigate (multi-choice)  | `Left/Right tabs \| Up/Down select \| Space toggle \| Tab notes \| Esc cancel`  |
+| Typing                   | `Enter submit \| Esc cancel \| Up/Down exit`                                    |
+| Notes                    | `Enter save \| Esc discard`                                                     |
+| Review                   | `Left/Right tabs \| Up/Down select \| Enter submit \| Esc cancel`               |
 
 ### 5. Validation, Normalization & Formatting
 
@@ -268,23 +272,29 @@ Notes mode — inline editor below options:
 ```ts
 interface NormalizedSingleChoiceQuestion {
   type: "single-choice";
-  id: string; header: string; prompt: string;
+  id: string;
+  header: string;
+  prompt: string;
   options: QuestionOption[];
   recommendation: string | null;
-  allowOther: boolean;    // default true
-  allowChat: boolean;     // default true
+  allowOther: boolean; // default true
+  allowChat: boolean; // default true
 }
 
 interface NormalizedMultiChoiceQuestion {
   type: "multi-choice";
-  id: string; header: string; prompt: string;
+  id: string;
+  header: string;
+  prompt: string;
   options: QuestionOption[];
   recommendation: string[];
-  allowChat: boolean;     // default true
+  allowChat: boolean; // default true
   // no allowOther
 }
 
-type NormalizedQuestion = NormalizedSingleChoiceQuestion | NormalizedMultiChoiceQuestion;
+type NormalizedQuestion =
+  | NormalizedSingleChoiceQuestion
+  | NormalizedMultiChoiceQuestion;
 ```
 
 **Validation changes:**
@@ -311,6 +321,7 @@ Features: user wants to discuss this question
 **Result construction:**
 
 `buildResult` assembles `QuestionResponse[]`:
+
 - Option: `{ questionId, selection: { kind: "option", value, label }, notes? }`
 - Custom: `{ questionId, selection: { kind: "custom", value }, notes? }`
 - Options: `{ questionId, selection: { kind: "options", selected: [...] }, notes? }`
@@ -320,22 +331,22 @@ Unanswered questions are omitted. "Chat about this" counts as answered.
 
 ## Files Affected
 
-| File | Change |
-|---|---|
-| `src/core/types.ts` | Remove text types, add sentinel/response types |
-| `src/core/schema.ts` | Remove TextQuestionSchema, add allowOther/allowChat fields |
-| `src/core/validate.ts` | Remove text branch, add sentinel validation |
-| `src/core/normalize.ts` | Remove text normalization, add sentinel defaults |
-| `src/core/process.ts` | No structural change |
-| `src/core/format.ts` | Rewrite for QuestionResponse shape |
-| `src/tui/state.ts` | New state fields, new actions, updated helpers |
-| `src/tui/input.ts` | Full rewrite of key routing for new modes/keys |
-| `src/tui/render.ts` | Update render assembly for new modes |
-| `src/tui/render-question.ts` | Sentinel rows, inline editor, notes editor |
-| `src/tui/render-tabs.ts` | Notes indicator `[n]` |
-| `src/tui/render-review.ts` | New answer display formats |
-| `src/index.ts` | Updated result handling, remove text references |
-| `tests/` | All test files updated to match |
+| File                         | Change                                                     |
+| ---------------------------- | ---------------------------------------------------------- |
+| `src/core/types.ts`          | Remove text types, add sentinel/response types             |
+| `src/core/schema.ts`         | Remove TextQuestionSchema, add allowOther/allowChat fields |
+| `src/core/validate.ts`       | Remove text branch, add sentinel validation                |
+| `src/core/normalize.ts`      | Remove text normalization, add sentinel defaults           |
+| `src/core/process.ts`        | No structural change                                       |
+| `src/core/format.ts`         | Rewrite for QuestionResponse shape                         |
+| `src/tui/state.ts`           | New state fields, new actions, updated helpers             |
+| `src/tui/input.ts`           | Full rewrite of key routing for new modes/keys             |
+| `src/tui/render.ts`          | Update render assembly for new modes                       |
+| `src/tui/render-question.ts` | Sentinel rows, inline editor, notes editor                 |
+| `src/tui/render-tabs.ts`     | Notes indicator `[n]`                                      |
+| `src/tui/render-review.ts`   | New answer display formats                                 |
+| `src/index.ts`               | Updated result handling, remove text references            |
+| `tests/`                     | All test files updated to match                            |
 
 ## Non-Goals
 
