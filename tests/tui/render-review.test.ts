@@ -4,12 +4,7 @@ import type {
   NormalizedQuestion,
 } from "../../src/core/types.ts";
 import { renderReviewScreen } from "../../src/tui/render-review.ts";
-
-const noopTheme = {
-  fg: (_color: string, text: string) => text,
-  bg: (_color: string, text: string) => text,
-  bold: (text: string) => text,
-};
+import { noopTheme } from "../helpers/theme.ts";
 
 const questions: NormalizedQuestion[] = [
   {
