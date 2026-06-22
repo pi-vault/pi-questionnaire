@@ -59,9 +59,11 @@ export function renderSingleChoiceQuestion(
     const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
 
     if (inputMode === "typing") {
-      const editorContent = editorLines.join("") || "";
-      const label = `${sentinelIndex + 1}. ${editorContent}`;
+      const label = `${sentinelIndex + 1}.`;
       pushWrappedWithPrefix(lines, prefix, theme.fg("accent", label), width);
+      for (const line of editorLines) {
+        lines.push(`    ${line}`);
+      }
     } else if (customText) {
       const label = `${sentinelIndex + 1}. "${customText}"`;
       const color = isCursor ? "accent" : "text";
