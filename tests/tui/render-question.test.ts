@@ -21,6 +21,7 @@ describe("renderSingleChoiceQuestion", () => {
     ],
     recommendation: "small",
     allowOther: false,
+    allowChat: false,
   };
 
   it("renders prompt and all options", () => {
@@ -194,6 +195,7 @@ describe("renderMultiChoiceQuestion", () => {
       { value: "log", label: "Logging" },
     ],
     recommendation: ["auth"],
+    allowChat: false,
   };
 
   it("renders checkboxes with bullet for checked items", () => {
@@ -221,5 +223,101 @@ describe("renderMultiChoiceQuestion", () => {
     );
     const text = lines.join("\n");
     expect(text).toContain("[recommended]");
+  });
+
+  it("renders '[ ] Chat about this' when allowChat is true", () => {
+    const q = { ...question, allowChat: true };
+    const lines = renderMultiChoiceQuestion(q, 0, new Set(), noopTheme, 80);
+    const text = lines.join("\n");
+    expect(text).toContain("[ ] Chat about this");
+  });
+
+  it("does not render 'Chat about this' when allowChat is false", () => {
+    const lines = renderMultiChoiceQuestion(
+      question,
+      0,
+      new Set(),
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).not.toContain("Chat about this");
+  });
+
+  it("always renders '── Next' sentinel", () => {
+    const lines = renderMultiChoiceQuestion(
+      question,
+      0,
+      new Set(),
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).toContain("\u2500\u2500 Next");
+  });
+});
+
+describe("renderSingleChoiceQuestion – chat sentinel", () => {
+  const baseQuestion: NormalizedSingleChoiceQuestion = {
+    type: "single-choice",
+    id: "scope",
+    header: "Scope",
+    prompt: "What scope?",
+    options: [
+      { value: "small", label: "Small" },
+      { value: "large", label: "Large" },
+    ],
+    recommendation: null,
+    allowOther: false,
+    allowChat: false,
+  };
+
+  it("renders 'N. Chat about this' when allowChat is true", () => {
+    const q = { ...baseQuestion, allowChat: true };
+    const lines = renderSingleChoiceQuestion(
+      q,
+      0,
+      null,
+      null,
+      "navigate",
+      [],
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).toContain("3. Chat about this");
+  });
+
+  it("does NOT render 'Chat about this' when allowChat is false", () => {
+    const lines = renderSingleChoiceQuestion(
+      baseQuestion,
+      0,
+      null,
+      null,
+      "navigate",
+      [],
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).not.toContain("Chat about this");
+  });
+
+  it("chat index is after 'Type something.' when allowOther is true", () => {
+    const q = { ...baseQuestion, allowOther: true, allowChat: true };
+    const lines = renderSingleChoiceQuestion(
+      q,
+      0,
+      null,
+      null,
+      "navigate",
+      [],
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    // options.length=2, allowOther adds index 2 (Type something.), chat is index 3
+    expect(text).toContain("3. Type something.");
+    expect(text).toContain("4. Chat about this");
   });
 });

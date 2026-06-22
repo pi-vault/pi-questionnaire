@@ -15,6 +15,7 @@ const questions: NormalizedQuestion[] = [
     ],
     recommendation: null,
     allowOther: false,
+    allowChat: false,
   },
   {
     type: "multi-choice",
@@ -26,6 +27,7 @@ const questions: NormalizedQuestion[] = [
       { value: "b", label: "B" },
     ],
     recommendation: [],
+    allowChat: false,
   },
 ];
 
