@@ -244,7 +244,7 @@ describe("renderMultiChoiceQuestion", () => {
     expect(text).not.toContain("Chat about this");
   });
 
-  it("always renders '── Next' sentinel", () => {
+  it("always renders '─── Next' sentinel", () => {
     const lines = renderMultiChoiceQuestion(
       question,
       0,
@@ -253,7 +253,7 @@ describe("renderMultiChoiceQuestion", () => {
       80,
     );
     const text = lines.join("\n");
-    expect(text).toContain("\u2500\u2500 Next");
+    expect(text).toContain("\u2500\u2500\u2500 Next");
   });
 });
 

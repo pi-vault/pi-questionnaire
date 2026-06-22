@@ -136,7 +136,7 @@ export function renderMultiChoiceQuestion(
     const nextIndex = question.options.length + (question.allowChat ? 1 : 0);
     const isCursor = nextIndex === cursor;
     const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-    const label = "\u2500\u2500 Next";
+    const label = "\u2500\u2500\u2500 Next";
     const color = isCursor ? "accent" : "dim";
     pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
   }
