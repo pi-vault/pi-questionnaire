@@ -12,7 +12,6 @@ export function renderReviewScreen(
   width: number,
 ): string[] {
   const lines: string[] = [];
-  const allAnswered = questions.every((q) => answers.has(q.id));
 
   pushWrapped(lines, theme.fg("accent", theme.bold("Review answers")), width);
   lines.push("");
@@ -37,22 +36,6 @@ export function renderReviewScreen(
       `${marker} ${theme.fg("accent", `${q.header}:`)} ${theme.fg(valueColor, value)}`,
       width,
     );
-  }
-
-  lines.push("");
-  if (allAnswered) {
-    pushWrapped(
-      lines,
-      theme.fg("success", "Enter submit | Space edit | Esc cancel"),
-      width,
-    );
-  } else {
-    pushWrapped(
-      lines,
-      theme.fg("warning", "Answer all questions before submitting."),
-      width,
-    );
-    pushWrapped(lines, theme.fg("dim", "Space edit | Esc cancel"), width);
   }
 
   return lines;

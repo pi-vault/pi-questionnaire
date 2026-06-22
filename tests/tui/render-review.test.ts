@@ -46,29 +46,6 @@ describe("renderReviewScreen", () => {
     expect(text).toContain("(unanswered)");
   });
 
-  it("shows submit prompt when all answered", () => {
-    const answers = new Map<string, QuestionSelection>([
-      ["scope", { kind: "option", value: "small", label: "Small" }],
-      [
-        "features",
-        {
-          kind: "options",
-          selected: [{ value: "auth", label: "Auth" }],
-        },
-      ],
-    ]);
-    const lines = renderReviewScreen(questions, answers, new Map(), 0, noopTheme, 80);
-    const text = lines.join("\n");
-    expect(text).toContain("Enter submit");
-  });
-
-  it("shows warning when not all answered", () => {
-    const answers = new Map<string, QuestionSelection>();
-    const lines = renderReviewScreen(questions, answers, new Map(), 0, noopTheme, 80);
-    const text = lines.join("\n");
-    expect(text).toContain("Answer all questions");
-  });
-
   it("shows [n] marker for questions with notes", () => {
     const answers = new Map<string, QuestionSelection>([
       ["scope", { kind: "option", value: "small", label: "Small" }],
