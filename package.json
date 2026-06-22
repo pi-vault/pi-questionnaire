@@ -2,7 +2,7 @@
   "name": "@pi-vault/pi-questionnaire",
   "version": "0.1.0",
   "type": "module",
-  "description": "Pi extension for asking single or multiple questions",
+  "description": "Pi extension for collecting structured user decisions in one interactive questionnaire",
   "author": "Lanh Hoang <lanhhoang@users.noreply.github.com>",
   "license": "MIT",
   "homepage": "https://github.com/pi-vault/pi-questionnaire#readme",
@@ -19,7 +19,11 @@
     "pi-package",
     "pi-extension",
     "pi-questionnaire",
-    "questionnaire"
+    "questionnaire",
+    "requirements",
+    "clarification",
+    "decision-making",
+    "interactive"
   ],
   "scripts": {
     "format": "biome format --write .",
@@ -40,8 +44,9 @@
   },
   "files": [
     "src",
-    "CHANGELOG.md",
+    "docs/assets",
     "LICENSE",
+    "CHANGELOG.md",
     "README.md"
   ],
   "peerDependencies": {
