@@ -59,9 +59,11 @@ export function renderSingleChoiceQuestion(
     const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
 
     if (inputMode === "typing") {
-      const editorContent = editorLines.join("") || "";
-      const label = `${sentinelIndex + 1}. ${editorContent}`;
+      const label = `${sentinelIndex + 1}.`;
       pushWrappedWithPrefix(lines, prefix, theme.fg("accent", label), width);
+      for (const line of editorLines) {
+        lines.push(`    ${line}`);
+      }
     } else if (customText) {
       const label = `${sentinelIndex + 1}. "${customText}"`;
       const color = isCursor ? "accent" : "text";
@@ -136,7 +138,7 @@ export function renderMultiChoiceQuestion(
     const nextIndex = question.options.length + (question.allowChat ? 1 : 0);
     const isCursor = nextIndex === cursor;
     const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-    const label = "\u2500\u2500 Next";
+    const label = "\u2500\u2500\u2500 Next";
     const color = isCursor ? "accent" : "dim";
     pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
   }

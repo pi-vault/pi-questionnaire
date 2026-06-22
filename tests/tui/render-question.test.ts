@@ -182,6 +182,27 @@ describe("renderSingleChoiceQuestion", () => {
     const text = lines.join("\n");
     expect(text).toContain("hello");
   });
+
+  it("renders multi-line editor lines separately (not joined)", () => {
+    const q = { ...question, allowOther: true };
+    const editorLines = ["---border---", "typed text", "---border---"];
+    const lines = renderSingleChoiceQuestion(
+      q,
+      q.options.length,
+      null,
+      null,
+      "typing",
+      editorLines,
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    // Each editor line should appear on its own output line
+    expect(text).toContain("---border---\n");
+    expect(text).toContain("typed text\n");
+    // The border and text should NOT be concatenated
+    expect(text).not.toContain("---border---typed text");
+  });
 });
 
 describe("renderMultiChoiceQuestion", () => {
@@ -244,7 +265,7 @@ describe("renderMultiChoiceQuestion", () => {
     expect(text).not.toContain("Chat about this");
   });
 
-  it("always renders '── Next' sentinel", () => {
+  it("always renders '─── Next' sentinel", () => {
     const lines = renderMultiChoiceQuestion(
       question,
       0,
@@ -253,7 +274,7 @@ describe("renderMultiChoiceQuestion", () => {
       80,
     );
     const text = lines.join("\n");
-    expect(text).toContain("\u2500\u2500 Next");
+    expect(text).toContain("\u2500\u2500\u2500 Next");
   });
 });
 

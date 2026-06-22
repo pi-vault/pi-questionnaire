@@ -56,6 +56,7 @@ export interface QuestionnaireState {
   inputMode: "navigate" | "typing" | "notes";
   editingQuestionId: string | null;
   customText: Map<string, string>;
+  notes: Map<string, string>;
 }
 
 export type Action =
@@ -68,7 +69,10 @@ export type Action =
   | { type: "submitTyping"; questionId: string; value: string }
   | { type: "cancelTyping" }
   | { type: "selectChat"; questionId: string }
-  | { type: "confirmMulti"; questionId: string };
+  | { type: "confirmMulti"; questionId: string }
+  | { type: "enterNotes"; questionId: string }
+  | { type: "submitNotes"; questionId: string; value: string }
+  | { type: "cancelNotes" };
 
 export function initState(questions: NormalizedQuestion[]): QuestionnaireState {
   const multiChecked = new Map<string, Set<string>>();
@@ -88,6 +92,7 @@ export function initState(questions: NormalizedQuestion[]): QuestionnaireState {
     inputMode: "navigate",
     editingQuestionId: null,
     customText: new Map(),
+    notes: new Map(),
   };
 }
 
@@ -133,6 +138,13 @@ export function getSelectedValue(
   return null;
 }
 
+export function hasSelection(
+  state: QuestionnaireState,
+  questionId: string,
+): boolean {
+  return state.answers.has(questionId);
+}
+
 function cloneState(state: QuestionnaireState): QuestionnaireState {
   return {
     activeTab: state.activeTab,
@@ -145,6 +157,7 @@ function cloneState(state: QuestionnaireState): QuestionnaireState {
     inputMode: state.inputMode,
     editingQuestionId: state.editingQuestionId,
     customText: new Map(state.customText),
+    notes: new Map(state.notes),
   };
 }
 
@@ -272,6 +285,27 @@ export function reduce(
       next.reviewCursor = 0;
       return next;
     }
+    case "enterNotes": {
+      next.inputMode = "notes";
+      next.editingQuestionId = action.questionId;
+      return next;
+    }
+    case "submitNotes": {
+      const trimmed = action.value.trim();
+      if (trimmed) {
+        next.notes.set(action.questionId, trimmed);
+      } else {
+        next.notes.delete(action.questionId);
+      }
+      next.inputMode = "navigate";
+      next.editingQuestionId = null;
+      return next;
+    }
+    case "cancelNotes": {
+      next.inputMode = "navigate";
+      next.editingQuestionId = null;
+      return next;
+    }
   }
 }
 
@@ -284,7 +318,10 @@ export function buildResult(
     .map((q) => {
       const selection = state.answers.get(q.id);
       if (!selection) return undefined;
-      return { questionId: q.id, selection };
+      const notes = state.notes.get(q.id);
+      const response: QuestionResponse = { questionId: q.id, selection };
+      if (notes) response.notes = notes;
+      return response;
     })
     .filter((r): r is QuestionResponse => r !== undefined);
   return { questions, responses, cancelled };

@@ -5,6 +5,7 @@ export function renderTabBar(
   questions: NormalizedQuestion[],
   activeTab: number,
   answeredIds: Set<string>,
+  notedIds: Set<string>,
   theme: RenderTheme,
   _width: number,
 ): string[] {
@@ -16,7 +17,8 @@ export function renderTabBar(
     const q = questions[i];
     const answered = answeredIds.has(q.id);
     const marker = answered ? "\u25A0" : "\u25A1";
-    const text = ` ${marker} ${q.header} `;
+    const noteSuffix = notedIds.has(q.id) ? " [n]" : "";
+    const text = ` ${marker} ${q.header}${noteSuffix} `;
     if (i === activeTab) {
       tabs.push(theme.bg("selectedBg", theme.fg("text", text)));
     } else {

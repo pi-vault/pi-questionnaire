@@ -6,12 +6,14 @@ import {
   allAnswered,
   currentQuestion,
   cursorTarget,
+  hasSelection,
 } from "./state.ts";
 
 export type InputResult =
   | { type: "action"; action: Action }
   | { type: "finalize"; cancelled: boolean }
   | { type: "forward-to-editor" }
+  | { type: "forward-to-notes-editor" }
   | { type: "none" };
 
 function action(a: Action): InputResult {
@@ -42,9 +44,26 @@ export function mapInput(
     return { type: "forward-to-editor" };
   }
 
+  // Notes mode — forward most keys to the notes editor
+  // Up/Down save-and-exit is handled by the UI adapter (needs editor buffer access)
+  if (state.inputMode === "notes") {
+    if (matchesKey(data, Key.escape)) {
+      return action({ type: "cancelNotes" });
+    }
+    return { type: "forward-to-notes-editor" };
+  }
+
   // Global Esc
   if (matchesKey(data, Key.escape)) {
     return { type: "finalize", cancelled: true };
+  }
+
+  // Tab — open notes editor (only if question has a selection)
+  if (matchesKey(data, Key.tab)) {
+    if (q && hasSelection(state, q.id)) {
+      return action({ type: "enterNotes", questionId: q.id });
+    }
+    return { type: "none" };
   }
 
   // Left/Right navigate tabs

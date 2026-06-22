@@ -445,4 +445,79 @@ describe("mapInput", () => {
       });
     }
   });
+
+  it("Esc in notes mode returns cancelNotes", () => {
+    const state = {
+      ...initState(questions),
+      inputMode: "notes" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("\x1b", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({ type: "cancelNotes" });
+    }
+  });
+
+  it("Enter in notes mode returns forward-to-notes-editor", () => {
+    const state = {
+      ...initState(questions),
+      inputMode: "notes" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("\r", state, questions);
+    expect(result).toEqual({ type: "forward-to-notes-editor" });
+  });
+
+  it("character keys in notes mode return forward-to-notes-editor", () => {
+    const state = {
+      ...initState(questions),
+      inputMode: "notes" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("a", state, questions);
+    expect(result).toEqual({ type: "forward-to-notes-editor" });
+  });
+
+  it("Up in notes mode returns forward-to-notes-editor", () => {
+    const state = {
+      ...initState(questions),
+      inputMode: "notes" as const,
+      editingQuestionId: "scope",
+    };
+    const result = mapInput("\x1b[A", state, questions);
+    expect(result).toEqual({ type: "forward-to-notes-editor" });
+  });
+
+  it("Tab on answered question returns enterNotes", () => {
+    const state = initState(questions);
+    state.answers.set("scope", {
+      kind: "option",
+      value: "small",
+      label: "Small",
+    });
+    const result = mapInput("\t", state, questions);
+    expect(result.type).toBe("action");
+    if (result.type === "action") {
+      expect(result.action).toEqual({
+        type: "enterNotes",
+        questionId: "scope",
+      });
+    }
+  });
+
+  it("Tab on unanswered question returns none", () => {
+    const state = initState(questions);
+    const result = mapInput("\t", state, questions);
+    expect(result).toEqual({ type: "none" });
+  });
+
+  it("Tab on review tab returns none", () => {
+    const state = {
+      ...initState(questions),
+      activeTab: questions.length,
+    };
+    const result = mapInput("\t", state, questions);
+    expect(result).toEqual({ type: "none" });
+  });
 });
