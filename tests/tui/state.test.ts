@@ -8,6 +8,7 @@ import {
   currentQuestion,
   cursorTarget,
   getSelectedValue,
+  hasSelection,
   initState,
   reduce,
   visibleRowCount,
@@ -618,5 +619,96 @@ describe("confirmMulti action", () => {
       questionsWithChat,
     );
     expect(next.activeTab).toBe(questionsWithChat.length); // review tab
+  });
+});
+
+describe("hasSelection", () => {
+  it("returns false when question has no answer", () => {
+    const state = initState(questions);
+    expect(hasSelection(state, "scope")).toBe(false);
+  });
+
+  it("returns true when question has an answer", () => {
+    const state = initState(questions);
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    expect(hasSelection(state, "scope")).toBe(true);
+  });
+});
+
+describe("notes actions", () => {
+  it("enterNotes sets inputMode to notes and editingQuestionId", () => {
+    const state = initState(questions);
+    const next = reduce(
+      state,
+      { type: "enterNotes", questionId: "scope" },
+      questions,
+    );
+    expect(next.inputMode).toBe("notes");
+    expect(next.editingQuestionId).toBe("scope");
+  });
+
+  it("submitNotes stores trimmed note and returns to navigate", () => {
+    const state = initState(questions);
+    state.inputMode = "notes";
+    state.editingQuestionId = "scope";
+    const next = reduce(
+      state,
+      { type: "submitNotes", questionId: "scope", value: "  my note  " },
+      questions,
+    );
+    expect(next.notes.get("scope")).toBe("my note");
+    expect(next.inputMode).toBe("navigate");
+    expect(next.editingQuestionId).toBeNull();
+  });
+
+  it("submitNotes with empty string deletes existing note", () => {
+    const state = initState(questions);
+    state.notes.set("scope", "old note");
+    state.inputMode = "notes";
+    state.editingQuestionId = "scope";
+    const next = reduce(
+      state,
+      { type: "submitNotes", questionId: "scope", value: "   " },
+      questions,
+    );
+    expect(next.notes.has("scope")).toBe(false);
+    expect(next.inputMode).toBe("navigate");
+  });
+
+  it("cancelNotes returns to navigate without modifying notes", () => {
+    const state = initState(questions);
+    state.notes.set("scope", "existing note");
+    state.inputMode = "notes";
+    state.editingQuestionId = "scope";
+    const next = reduce(state, { type: "cancelNotes" }, questions);
+    expect(next.inputMode).toBe("navigate");
+    expect(next.editingQuestionId).toBeNull();
+    expect(next.notes.get("scope")).toBe("existing note");
+  });
+
+  it("switchTab resets inputMode when in notes mode", () => {
+    const state = initState(questions);
+    state.inputMode = "notes";
+    state.editingQuestionId = "scope";
+    const next = reduce(state, { type: "switchTab", tab: 1 }, questions);
+    expect(next.inputMode).toBe("navigate");
+    expect(next.editingQuestionId).toBeNull();
+  });
+});
+
+describe("buildResult with notes", () => {
+  it("includes notes in response when present", () => {
+    const state = initState(questions);
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    state.notes.set("scope", "important note");
+    const result = buildResult(state, questions, false);
+    expect(result.responses[0].notes).toBe("important note");
+  });
+
+  it("omits notes field when question has no note", () => {
+    const state = initState(questions);
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    const result = buildResult(state, questions, false);
+    expect(result.responses[0].notes).toBeUndefined();
   });
 });
