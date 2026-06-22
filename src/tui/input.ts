@@ -104,6 +104,9 @@ export function mapInput(
       if (target.kind === "other") {
         return action({ type: "enterTyping", questionId: q.id });
       }
+      if (target.kind === "chat") {
+        return action({ type: "selectChat", questionId: q.id });
+      }
     }
     return { type: "none" };
   }
@@ -115,16 +118,22 @@ export function mapInput(
   if (matchesKey(data, Key.down)) {
     return action({ type: "moveCursor", direction: "down" });
   }
-  if (matchesKey(data, Key.space)) {
-    const opt = q.options[state.optionCursor];
-    return action({
-      type: "toggleCheckbox",
-      questionId: q.id,
-      value: opt.value,
-    });
-  }
-  if (matchesKey(data, Key.enter)) {
-    return { type: "none" }; // confirm (no-op, answer already synced)
+  if (matchesKey(data, Key.space) || matchesKey(data, Key.enter)) {
+    const target = cursorTarget(q, state.optionCursor);
+    if (target.kind === "option") {
+      const opt = q.options[target.index];
+      return action({
+        type: "toggleCheckbox",
+        questionId: q.id,
+        value: opt.value,
+      });
+    }
+    if (target.kind === "chat") {
+      return action({ type: "selectChat", questionId: q.id });
+    }
+    if (target.kind === "next") {
+      return action({ type: "confirmMulti", questionId: q.id });
+    }
   }
 
   return { type: "none" };
