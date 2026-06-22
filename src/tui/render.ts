@@ -18,6 +18,7 @@ export function renderQuestionnaire(
   state: QuestionnaireState,
   questions: NormalizedQuestion[],
   editorLines: string[],
+  notesEditorLines: string[],
   theme: RenderTheme,
   width: number,
 ): string[] {
@@ -29,11 +30,13 @@ export function renderQuestionnaire(
   lines.push(theme.fg("accent", "\u2500".repeat(renderWidth)));
 
   // Tab bar
+  const notedIds = new Set(state.notes.keys());
   lines.push(
     ...renderTabBar(
       questions,
       state.activeTab,
       answeredIds(state),
+      notedIds,
       theme,
       renderWidth,
     ),
@@ -45,6 +48,7 @@ export function renderQuestionnaire(
       ...renderReviewScreen(
         questions,
         state.answers,
+        state.notes,
         state.reviewCursor,
         theme,
         renderWidth,
@@ -82,18 +86,30 @@ export function renderQuestionnaire(
     }
   }
 
+  // Notes editor (when in notes mode)
+  if (state.inputMode === "notes") {
+    lines.push("");
+    pushWrapped(lines, theme.fg("muted", "Note for this question:"), renderWidth);
+    for (const line of notesEditorLines) {
+      lines.push(` ${line}`);
+    }
+  }
+
   // Hint bar
   lines.push("");
   let hint: string;
   if (state.inputMode === "typing") {
     hint = "Enter submit | Esc cancel | Up/Down exit";
+  } else if (state.inputMode === "notes") {
+    hint = "Enter save | Esc discard";
   } else if (state.activeTab === reviewTabIndex) {
-    hint =
-      "Left/Right tabs | Up/Down move | Space jump | Enter submit | Esc cancel";
+    hint = "Left/Right tabs | Up/Down select | Enter submit | Esc cancel";
   } else if (q?.type === "multi-choice") {
-    hint = "Left/Right tabs | Up/Down move | Space toggle | Enter next | Esc cancel";
+    hint =
+      "Left/Right tabs | Up/Down select | Space toggle | Tab notes | Esc cancel";
   } else {
-    hint = "Left/Right tabs | Up/Down move | Space/Enter select | Esc cancel";
+    hint =
+      "Left/Right tabs | Up/Down select | Enter confirm | Tab notes | Esc cancel";
   }
   pushWrapped(lines, theme.fg("dim", hint), renderWidth);
 

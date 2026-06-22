@@ -6,6 +6,7 @@ import type { RenderTheme } from "./theme.ts";
 export function renderReviewScreen(
   questions: NormalizedQuestion[],
   answers: Map<string, QuestionSelection>,
+  notes: Map<string, string>,
   cursor: number,
   theme: RenderTheme,
   width: number,
@@ -24,8 +25,9 @@ export function renderReviewScreen(
     const marker = selection
       ? theme.fg("success", "\u25A0")
       : theme.fg("warning", "\u25A1");
+    const noteSuffix = notes.has(q.id) ? " [n]" : "";
     const value = selection
-      ? formatAnswerForRender(q, selection)
+      ? formatAnswerForRender(q, selection) + noteSuffix
       : "(unanswered)";
     const valueColor = selection ? "text" : "muted";
 

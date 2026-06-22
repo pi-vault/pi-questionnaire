@@ -35,7 +35,7 @@ const questions: NormalizedQuestion[] = [
 describe("renderQuestionnaire", () => {
   it("renders tab bar and question content for single-choice", () => {
     const state = initState(questions);
-    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], [], noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Scope");
     expect(text).toContain("Pick scope");
@@ -45,7 +45,7 @@ describe("renderQuestionnaire", () => {
 
   it("renders review screen when on review tab", () => {
     const state = { ...initState(questions), activeTab: questions.length };
-    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], [], noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Review answers");
     expect(text).toContain("(unanswered)");
@@ -53,10 +53,11 @@ describe("renderQuestionnaire", () => {
 
   it("includes hint bar for choice questions", () => {
     const state = initState(questions);
-    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], [], noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Left/Right tabs");
-    expect(text).toContain("Space/Enter select");
+    expect(text).toContain("Enter confirm");
+    expect(text).toContain("Tab notes");
   });
 
   it("shows typing mode hint bar when inputMode is typing", () => {
@@ -65,7 +66,7 @@ describe("renderQuestionnaire", () => {
       inputMode: "typing" as const,
       editingQuestionId: "scope",
     };
-    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], [], noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("Enter submit");
     expect(text).toContain("Esc cancel");
@@ -74,8 +75,40 @@ describe("renderQuestionnaire", () => {
 
   it("shows separator lines at top and bottom", () => {
     const state = initState(questions);
-    const lines = renderQuestionnaire(state, questions, [], noopTheme, 80);
+    const lines = renderQuestionnaire(state, questions, [], [], noopTheme, 80);
     expect(lines[0]).toContain("\u2500");
     expect(lines[lines.length - 1]).toContain("\u2500");
+  });
+
+  it("shows notes mode hint bar when inputMode is notes", () => {
+    const state = {
+      ...initState(questions),
+      inputMode: "notes" as const,
+      editingQuestionId: "scope",
+    };
+    const lines = renderQuestionnaire(state, questions, [], [], noopTheme, 80);
+    const text = lines.join("\n");
+    expect(text).toContain("Enter save");
+    expect(text).toContain("Esc discard");
+  });
+
+  it("renders notes editor below question content in notes mode", () => {
+    const state = {
+      ...initState(questions),
+      inputMode: "notes" as const,
+      editingQuestionId: "scope",
+    };
+    const notesEditorLines = ["my note text"];
+    const lines = renderQuestionnaire(
+      state,
+      questions,
+      [],
+      notesEditorLines,
+      noopTheme,
+      80,
+    );
+    const text = lines.join("\n");
+    expect(text).toContain("Note for this question:");
+    expect(text).toContain("my note text");
   });
 });
