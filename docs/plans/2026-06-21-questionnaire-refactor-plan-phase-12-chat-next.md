@@ -83,7 +83,19 @@ Expected: PASS
 - Modify: `src/tui/state.ts`
 - Test: `tests/tui/state.test.ts`
 
-- [ ] **Step 1: Update `visibleRowCount` and `cursorTarget`**
+- [ ] **Step 1: Update `CursorTarget` type, `visibleRowCount`, and `cursorTarget`**
+
+Add `chat` and `next` variants to the `CursorTarget` type:
+
+```ts
+export type CursorTarget =
+  | { kind: "option"; index: number }
+  | { kind: "other" }
+  | { kind: "chat" }
+  | { kind: "next" };
+```
+
+Then update both functions:
 
 ```ts
 export function visibleRowCount(question: NormalizedQuestion): number {
@@ -139,6 +151,11 @@ case "selectChat": {
   next.answers.set(action.questionId, { kind: "chat" });
   const checked = next.multiChecked.get(action.questionId);
   if (checked) checked.clear();
+  // Chat counts as answered — advance to next unanswered tab
+  const nextTab = advanceToNextTab(next, questions);
+  next.activeTab = nextTab;
+  next.optionCursor = 0;
+  next.reviewCursor = 0;
   return next;
 }
 ```
@@ -245,6 +262,7 @@ Expected: PASS
 **Files:**
 
 - Modify: `src/tui/render-question.ts`
+- Modify: `src/tui/render.ts` (hint bar)
 - Test: `tests/tui/render-question.test.ts`
 
 - [ ] **Step 1: Add chat sentinel rendering to `renderSingleChoiceQuestion`**
@@ -265,17 +283,7 @@ if (question.allowChat) {
 
 - [ ] **Step 2: Add chat and Next sentinel rendering to `renderMultiChoiceQuestion`**
 
-Update the function signature to accept `allowChat`:
-
-```ts
-export function renderMultiChoiceQuestion(
-  question: NormalizedMultiChoiceQuestion,
-  cursor: number,
-  checked: Set<string>,
-  theme: RenderTheme,
-  width: number,
-): string[];
-```
+The function signature stays the same — `allowChat` is already on `NormalizedMultiChoiceQuestion` after Task 12.1.
 
 After the options loop, add:
 
@@ -303,12 +311,22 @@ if (question.allowChat) {
 }
 ```
 
-- [ ] **Step 3: Write tests and run full check**
+- [ ] **Step 3: Update multi-choice hint bar in `src/tui/render.ts`**
+
+The multi-choice hint should mention Enter for confirming "Next":
+
+```ts
+} else if (q?.type === "multi-choice") {
+  hint = "Left/Right tabs | Up/Down move | Space toggle | Enter next | Esc cancel";
+}
+```
+
+- [ ] **Step 4: Write tests and run full check**
 
 Run: `cd /Users/lanh/Developer/pi-vault/pi-questionnaire && pnpm check`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add src/ tests/

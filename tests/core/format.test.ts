@@ -22,6 +22,7 @@ const singleQ: NormalizedQuestion = {
   ],
   recommendation: null,
   allowOther: false,
+  allowChat: false,
 };
 
 const multiQ: NormalizedQuestion = {
@@ -35,6 +36,7 @@ const multiQ: NormalizedQuestion = {
     { value: "cache", label: "Cache" },
   ],
   recommendation: [],
+  allowChat: false,
 };
 
 describe("formatModelLine", () => {

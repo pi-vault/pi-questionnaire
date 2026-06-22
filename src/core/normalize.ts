@@ -24,6 +24,7 @@ function normalizeSingleChoice(
     options: normalizeOptions(q.options),
     recommendation: q.recommendation?.trim() ?? null,
     allowOther: q.allowOther !== false,
+    allowChat: q.allowChat !== false,
   };
 }
 
@@ -37,6 +38,7 @@ function normalizeMultiChoice(
     prompt: q.prompt.trim(),
     options: normalizeOptions(q.options),
     recommendation: q.recommendation?.map((r) => r.trim()) ?? [],
+    allowChat: q.allowChat !== false,
   };
 }
 

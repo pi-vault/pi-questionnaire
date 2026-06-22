@@ -124,6 +124,84 @@ describe("normalizeQuestions", () => {
     }
   });
 
+  it("defaults allowChat to true for single-choice", () => {
+    const input: QuestionInput[] = [
+      {
+        type: "single-choice",
+        id: "q1",
+        header: "Q1",
+        prompt: "Pick",
+        options: [
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ],
+      },
+    ];
+    const result = normalizeQuestions(input);
+    if (result[0].type === "single-choice") {
+      expect(result[0].allowChat).toBe(true);
+    }
+  });
+
+  it("preserves allowChat: false for single-choice", () => {
+    const input: QuestionInput[] = [
+      {
+        type: "single-choice",
+        id: "q1",
+        header: "Q1",
+        prompt: "Pick",
+        options: [
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ],
+        allowChat: false,
+      },
+    ];
+    const result = normalizeQuestions(input);
+    if (result[0].type === "single-choice") {
+      expect(result[0].allowChat).toBe(false);
+    }
+  });
+
+  it("defaults allowChat to true for multi-choice", () => {
+    const input: QuestionInput[] = [
+      {
+        type: "multi-choice",
+        id: "q1",
+        header: "Q1",
+        prompt: "Pick",
+        options: [
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ],
+      },
+    ];
+    const result = normalizeQuestions(input);
+    if (result[0].type === "multi-choice") {
+      expect(result[0].allowChat).toBe(true);
+    }
+  });
+
+  it("preserves allowChat: false for multi-choice", () => {
+    const input: QuestionInput[] = [
+      {
+        type: "multi-choice",
+        id: "q1",
+        header: "Q1",
+        prompt: "Pick",
+        options: [
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ],
+        allowChat: false,
+      },
+    ];
+    const result = normalizeQuestions(input);
+    if (result[0].type === "multi-choice") {
+      expect(result[0].allowChat).toBe(false);
+    }
+  });
+
   it("strips undefined descriptions from options", () => {
     const input: QuestionInput[] = [
       {

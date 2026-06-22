@@ -38,6 +38,12 @@ export const SingleChoiceQuestionSchema = Type.Object({
         'Append a "Type something." option for custom text input (default: true)',
     }),
   ),
+  allowChat: Type.Optional(
+    Type.Boolean({
+      description:
+        'Append a "Chat about this" option to signal the agent for discussion (default: true)',
+    }),
+  ),
 });
 
 export const MultiChoiceQuestionSchema = Type.Object({
@@ -54,6 +60,12 @@ export const MultiChoiceQuestionSchema = Type.Object({
   }),
   recommendation: Type.Optional(
     Type.Array(Type.String(), { description: "Values of recommended options" }),
+  ),
+  allowChat: Type.Optional(
+    Type.Boolean({
+      description:
+        'Append a "Chat about this" option to signal the agent for discussion (default: true)',
+    }),
   ),
 });
 

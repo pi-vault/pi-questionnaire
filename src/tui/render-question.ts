@@ -73,6 +73,16 @@ export function renderSingleChoiceQuestion(
     }
   }
 
+  // "Chat about this" sentinel
+  if (question.allowChat) {
+    const chatIndex = question.options.length + (question.allowOther ? 1 : 0);
+    const isCursor = chatIndex === cursor;
+    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+    const label = `${chatIndex + 1}. Chat about this`;
+    const color = isCursor ? "accent" : "muted";
+    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+  }
+
   return lines;
 }
 
@@ -109,6 +119,26 @@ export function renderMultiChoiceQuestion(
         width,
       );
     }
+  }
+
+  // "Chat about this" sentinel
+  if (question.allowChat) {
+    const chatIndex = question.options.length;
+    const isCursor = chatIndex === cursor;
+    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+    const label = `[ ] Chat about this`;
+    const color = isCursor ? "accent" : "muted";
+    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+  }
+
+  // "Next" sentinel
+  {
+    const nextIndex = question.options.length + (question.allowChat ? 1 : 0);
+    const isCursor = nextIndex === cursor;
+    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+    const label = "\u2500\u2500 Next";
+    const color = isCursor ? "accent" : "dim";
+    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
   }
 
   return lines;

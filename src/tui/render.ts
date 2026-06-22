@@ -91,7 +91,7 @@ export function renderQuestionnaire(
     hint =
       "Left/Right tabs | Up/Down move | Space jump | Enter submit | Esc cancel";
   } else if (q?.type === "multi-choice") {
-    hint = "Left/Right tabs | Up/Down move | Space toggle | Esc cancel";
+    hint = "Left/Right tabs | Up/Down move | Space toggle | Enter next | Esc cancel";
   } else {
     hint = "Left/Right tabs | Up/Down move | Space/Enter select | Esc cancel";
   }
