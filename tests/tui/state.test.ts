@@ -560,8 +560,7 @@ describe("selectChat action", () => {
     const state = initState(questionsWithChat);
     state.activeTab = 1;
     state.answers.set("q1", { kind: "chat" }); // q1 already answered
-    const checked = state.multiChecked.get("q2")!;
-    checked.add("x"); // simulate prior toggleCheckbox
+    state.multiChecked.get("q2")?.add("x"); // simulate prior toggleCheckbox
 
     const next = reduce(
       state,
