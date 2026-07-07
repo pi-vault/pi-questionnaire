@@ -101,8 +101,8 @@ export function mapInput(
 
   if (!q) return { type: "none" };
 
-  // Single-choice
-  if (q.type === "single-choice") {
+  // Single-select
+  if (!q.multiSelect) {
     if (matchesKey(data, Key.up)) {
       return action({ type: "moveCursor", direction: "up" });
     }

@@ -12,14 +12,14 @@ export type CursorTarget =
   | { kind: "next" };
 
 export function visibleRowCount(question: NormalizedQuestion): number {
-  if (question.type === "single-choice") {
+  if (!question.multiSelect) {
     return (
       question.options.length +
       (question.allowOther ? 1 : 0) +
       (question.allowChat ? 1 : 0)
     );
   }
-  // multi-choice: options + chat? + Next
+  // multi-select: options + chat? + Next
   return question.options.length + (question.allowChat ? 1 : 0) + 1;
 }
 
@@ -33,14 +33,14 @@ export function cursorTarget(
 
   let sentinel = question.options.length;
 
-  if (question.type === "single-choice") {
+  if (!question.multiSelect) {
     if (question.allowOther && cursor === sentinel) return { kind: "other" };
     if (question.allowOther) sentinel++;
     if (question.allowChat && cursor === sentinel) return { kind: "chat" };
     return { kind: "option", index: question.options.length - 1 };
   }
 
-  // multi-choice
+  // multi-select
   if (question.allowChat && cursor === sentinel) return { kind: "chat" };
   if (question.allowChat) sentinel++;
   if (cursor === sentinel) return { kind: "next" };
@@ -78,8 +78,11 @@ export function initState(questions: NormalizedQuestion[]): QuestionnaireState {
   const multiChecked = new Map<string, Set<string>>();
 
   for (const q of questions) {
-    if (q.type === "multi-choice") {
-      multiChecked.set(q.id, new Set(q.recommendation));
+    if (q.multiSelect) {
+      multiChecked.set(
+        q.id,
+        new Set(q.recommendation ? [q.recommendation] : []),
+      );
     }
   }
 
@@ -221,7 +224,7 @@ export function reduce(
       next.multiChecked.set(action.questionId, checked);
       // Sync answer
       const q = questions.find((q) => q.id === action.questionId);
-      if (q?.type === "multi-choice") {
+      if (q?.multiSelect) {
         const selected = q.options
           .filter((o) => checked.has(o.value))
           .map((o) => ({ value: o.value, label: o.label }));

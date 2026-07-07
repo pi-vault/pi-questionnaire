@@ -8,7 +8,7 @@ import { noopTheme } from "../helpers/theme.ts";
 
 const questions: NormalizedQuestion[] = [
   {
-    type: "single-choice",
+    multiSelect: false,
     id: "scope",
     header: "Scope",
     prompt: "Pick",
@@ -21,7 +21,7 @@ const questions: NormalizedQuestion[] = [
     allowChat: false,
   },
   {
-    type: "multi-choice",
+    multiSelect: true,
     id: "features",
     header: "Features",
     prompt: "Pick features",
@@ -29,7 +29,8 @@ const questions: NormalizedQuestion[] = [
       { value: "auth", label: "Auth" },
       { value: "log", label: "Logging" },
     ],
-    recommendation: [],
+    recommendation: null,
+    allowOther: false,
     allowChat: false,
   },
 ];

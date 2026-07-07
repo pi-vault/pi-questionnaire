@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  NormalizedSingleChoiceQuestion,
-  NormalizedMultiChoiceQuestion,
-} from "../../src/core/types.ts";
+import type { NormalizedQuestion } from "../../src/core/types.ts";
 import {
   renderSingleChoiceQuestion,
   renderMultiChoiceQuestion,
@@ -10,8 +7,8 @@ import {
 import { noopTheme } from "../helpers/theme.ts";
 
 describe("renderSingleChoiceQuestion", () => {
-  const question: NormalizedSingleChoiceQuestion = {
-    type: "single-choice",
+  const question: NormalizedQuestion = {
+    multiSelect: false,
     id: "scope",
     header: "Scope",
     prompt: "What scope?",
@@ -206,8 +203,8 @@ describe("renderSingleChoiceQuestion", () => {
 });
 
 describe("renderMultiChoiceQuestion", () => {
-  const question: NormalizedMultiChoiceQuestion = {
-    type: "multi-choice",
+  const question: NormalizedQuestion = {
+    multiSelect: true,
     id: "features",
     header: "Features",
     prompt: "Which features?",
@@ -215,7 +212,8 @@ describe("renderMultiChoiceQuestion", () => {
       { value: "auth", label: "Auth" },
       { value: "log", label: "Logging" },
     ],
-    recommendation: ["auth"],
+    recommendation: "auth",
+    allowOther: false,
     allowChat: false,
   };
 
@@ -279,8 +277,8 @@ describe("renderMultiChoiceQuestion", () => {
 });
 
 describe("renderSingleChoiceQuestion – chat sentinel", () => {
-  const baseQuestion: NormalizedSingleChoiceQuestion = {
-    type: "single-choice",
+  const baseQuestion: NormalizedQuestion = {
+    multiSelect: false,
     id: "scope",
     header: "Scope",
     prompt: "What scope?",

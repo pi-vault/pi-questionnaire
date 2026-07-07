@@ -55,34 +55,30 @@ export function renderQuestionnaire(
       ),
     );
   } else if (q) {
-    switch (q.type) {
-      case "single-choice":
-        lines.push(
-          ...renderSingleChoiceQuestion(
-            q,
-            state.optionCursor,
-            getSelectedValue(state, q.id),
-            state.customText.get(q.id) ?? null,
-            state.inputMode,
-            editorLines,
-            theme,
-            renderWidth,
-          ),
-        );
-        break;
-      case "multi-choice": {
-        const checked = state.multiChecked.get(q.id) ?? new Set();
-        lines.push(
-          ...renderMultiChoiceQuestion(
-            q,
-            state.optionCursor,
-            checked,
-            theme,
-            renderWidth,
-          ),
-        );
-        break;
-      }
+    if (q.multiSelect) {
+      const checked = state.multiChecked.get(q.id) ?? new Set();
+      lines.push(
+        ...renderMultiChoiceQuestion(
+          q,
+          state.optionCursor,
+          checked,
+          theme,
+          renderWidth,
+        ),
+      );
+    } else {
+      lines.push(
+        ...renderSingleChoiceQuestion(
+          q,
+          state.optionCursor,
+          getSelectedValue(state, q.id),
+          state.customText.get(q.id) ?? null,
+          state.inputMode,
+          editorLines,
+          theme,
+          renderWidth,
+        ),
+      );
     }
   }
 
@@ -104,7 +100,7 @@ export function renderQuestionnaire(
     hint = "Enter save | Esc discard";
   } else if (state.activeTab === reviewTabIndex) {
     hint = "Left/Right tabs | Up/Down select | Enter submit | Esc cancel";
-  } else if (q?.type === "multi-choice") {
+  } else if (q?.multiSelect) {
     hint =
       "Left/Right tabs | Up/Down select | Space toggle | Tab notes | Esc cancel";
   } else {

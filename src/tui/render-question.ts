@@ -1,12 +1,9 @@
-import type {
-  NormalizedSingleChoiceQuestion,
-  NormalizedMultiChoiceQuestion,
-} from "../core/types.ts";
+import type { NormalizedQuestion } from "../core/types.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
 import type { RenderTheme } from "./theme.ts";
 
 export function renderSingleChoiceQuestion(
-  question: NormalizedSingleChoiceQuestion,
+  question: NormalizedQuestion,
   cursor: number,
   selectedValue: string | null,
   customText: string | null,
@@ -89,7 +86,7 @@ export function renderSingleChoiceQuestion(
 }
 
 export function renderMultiChoiceQuestion(
-  question: NormalizedMultiChoiceQuestion,
+  question: NormalizedQuestion,
   cursor: number,
   checked: Set<string>,
   theme: RenderTheme,
@@ -106,9 +103,8 @@ export function renderMultiChoiceQuestion(
     const isChecked = checked.has(opt.value);
     const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
     const marker = isChecked ? "[\u2022]" : "[ ]";
-    const recSuffix = question.recommendation.includes(opt.value)
-      ? " [recommended]"
-      : "";
+    const recSuffix =
+      question.recommendation === opt.value ? " [recommended]" : "";
     const label = `${marker} ${i + 1}. ${opt.label}${recSuffix}`;
     const color = isCursor ? "accent" : isChecked ? "success" : "text";
 

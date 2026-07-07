@@ -16,7 +16,7 @@ import {
 
 const questions: NormalizedQuestion[] = [
   {
-    type: "single-choice",
+    multiSelect: false,
     id: "scope",
     header: "Scope",
     prompt: "Pick scope",
@@ -29,7 +29,7 @@ const questions: NormalizedQuestion[] = [
     allowChat: false,
   },
   {
-    type: "multi-choice",
+    multiSelect: true,
     id: "features",
     header: "Features",
     prompt: "Pick features",
@@ -37,13 +37,14 @@ const questions: NormalizedQuestion[] = [
       { value: "auth", label: "Auth" },
       { value: "log", label: "Logging" },
     ],
-    recommendation: ["auth"],
+    recommendation: "auth",
+    allowOther: false,
     allowChat: false,
   },
 ];
 
 const singleWithOther: NormalizedQuestion = {
-  type: "single-choice",
+  multiSelect: false,
   id: "scope-other",
   header: "Scope",
   prompt: "Pick scope",
@@ -57,7 +58,7 @@ const singleWithOther: NormalizedQuestion = {
 };
 
 const singleWithChat: NormalizedQuestion = {
-  type: "single-choice",
+  multiSelect: false,
   id: "scope-chat",
   header: "Scope",
   prompt: "Pick scope",
@@ -71,7 +72,7 @@ const singleWithChat: NormalizedQuestion = {
 };
 
 const singleWithOtherAndChat: NormalizedQuestion = {
-  type: "single-choice",
+  multiSelect: false,
   id: "scope-other-chat",
   header: "Scope",
   prompt: "Pick scope",
@@ -85,7 +86,7 @@ const singleWithOtherAndChat: NormalizedQuestion = {
 };
 
 const multiWithChat: NormalizedQuestion = {
-  type: "multi-choice",
+  multiSelect: true,
   id: "features-chat",
   header: "Features",
   prompt: "Pick features",
@@ -93,14 +94,15 @@ const multiWithChat: NormalizedQuestion = {
     { value: "auth", label: "Auth" },
     { value: "log", label: "Logging" },
   ],
-  recommendation: [],
+  recommendation: null,
+  allowOther: false,
   allowChat: true,
 };
 
 // Questions used for selectChat / confirmMulti reducer tests
 const questionsWithChat: NormalizedQuestion[] = [
   {
-    type: "single-choice",
+    multiSelect: false,
     id: "q1",
     header: "Q1",
     prompt: "Pick one",
@@ -113,7 +115,7 @@ const questionsWithChat: NormalizedQuestion[] = [
     allowChat: true,
   },
   {
-    type: "multi-choice",
+    multiSelect: true,
     id: "q2",
     header: "Q2",
     prompt: "Pick many",
@@ -121,7 +123,8 @@ const questionsWithChat: NormalizedQuestion[] = [
       { value: "x", label: "X" },
       { value: "y", label: "Y" },
     ],
-    recommendation: [],
+    recommendation: null,
+    allowOther: false,
     allowChat: true,
   },
 ];

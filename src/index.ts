@@ -26,7 +26,7 @@ export default function createExtension(pi: ExtensionAPI): void {
     name: "questionnaire",
     label: "Questionnaire",
     description:
-      "Ask the user 1-10 structured questions. Supports single-choice and multi-choice questions. Use for clarifying requirements, getting preferences, or confirming decisions.",
+      "Ask the user 1-10 structured questions. Supports single-select and multi-select questions. Use for clarifying requirements, getting preferences, or confirming decisions.",
     promptSnippet:
       "Use this tool to collect structured user decisions before proceeding with implementation or planning.",
     promptGuidelines: [
