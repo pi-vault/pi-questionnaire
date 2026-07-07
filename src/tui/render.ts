@@ -38,7 +38,6 @@ export function renderQuestionnaire(
       answeredIds(state),
       notedIds,
       theme,
-      renderWidth,
     ),
   );
 

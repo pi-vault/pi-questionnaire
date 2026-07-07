@@ -7,7 +7,6 @@ export {
 } from "./schema.ts";
 export type { QuestionOption, QuestionInput } from "./schema.ts";
 export type {
-  NormalizedOption,
   NormalizedQuestion,
   QuestionnaireResult,
   QuestionResponse,

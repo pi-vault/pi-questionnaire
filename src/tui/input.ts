@@ -6,7 +6,6 @@ import {
   allAnswered,
   currentQuestion,
   cursorTarget,
-  hasSelection,
 } from "./state.ts";
 
 export type InputResult =
@@ -31,13 +30,7 @@ export function mapInput(
 
   // Typing mode — forward most keys to the inline editor
   if (state.inputMode === "typing") {
-    if (matchesKey(data, Key.escape)) {
-      return action({ type: "cancelTyping" });
-    }
-    if (matchesKey(data, Key.up)) {
-      return action({ type: "cancelTyping" });
-    }
-    if (matchesKey(data, Key.down)) {
+    if (matchesKey(data, Key.escape) || matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
       return action({ type: "cancelTyping" });
     }
     // Enter, Left, Right, and all other keys → forward to editor
@@ -60,7 +53,7 @@ export function mapInput(
 
   // Tab — open notes editor (only if question has a selection)
   if (matchesKey(data, Key.tab)) {
-    if (q && hasSelection(state, q.id)) {
+    if (q && state.answers.has(q.id)) {
       return action({ type: "enterNotes", questionId: q.id });
     }
     return { type: "none" };
