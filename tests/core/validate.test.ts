@@ -2,45 +2,44 @@ import { describe, expect, it } from "vitest";
 import type { QuestionInput } from "../../src/core/schema.ts";
 import { validateQuestions } from "../../src/core/validate.ts";
 
-function choiceQ(
-  overrides: Partial<QuestionInput & { type: "single-choice" }> = {},
+function singleQ(
+  overrides: Partial<QuestionInput> = {},
 ): QuestionInput {
   return {
-    type: "single-choice",
     id: "q1",
     header: "Q1",
     prompt: "Pick one",
     options: [
-      { value: "a", label: "A" },
-      { value: "b", label: "B" },
+      { label: "A", value: "a" },
+      { label: "B", value: "b" },
     ],
     ...overrides,
   };
 }
 
 function multiQ(
-  overrides: Partial<QuestionInput & { type: "multi-choice" }> = {},
+  overrides: Partial<QuestionInput> = {},
 ): QuestionInput {
   return {
-    type: "multi-choice",
     id: "q1",
     header: "Q1",
     prompt: "Pick many",
+    multiSelect: true,
     options: [
-      { value: "a", label: "A" },
-      { value: "b", label: "B" },
+      { label: "A", value: "a" },
+      { label: "B", value: "b" },
     ],
     ...overrides,
   };
 }
 
 describe("validateQuestions", () => {
-  it("accepts a valid single choice question", () => {
-    const result = validateQuestions([choiceQ()]);
+  it("accepts a valid single-select question", () => {
+    const result = validateQuestions([singleQ()]);
     expect(result).toEqual({ valid: true });
   });
 
-  it("accepts a valid multi-choice question", () => {
+  it("accepts a valid multi-select question", () => {
     const result = validateQuestions([multiQ()]);
     expect(result).toEqual({ valid: true });
   });
@@ -54,7 +53,7 @@ describe("validateQuestions", () => {
   });
 
   it("rejects more than 10 questions", () => {
-    const qs = Array.from({ length: 11 }, (_, i) => choiceQ({ id: `q${i}` }));
+    const qs = Array.from({ length: 11 }, (_, i) => singleQ({ id: `q${i}` }));
     const result = validateQuestions(qs);
     expect(result).toEqual({
       valid: false,
@@ -64,7 +63,7 @@ describe("validateQuestions", () => {
 
   it("rejects duplicate question ids", () => {
     const result = validateQuestions([
-      choiceQ({ id: "dup" }),
+      singleQ({ id: "dup" }),
       multiQ({ id: "dup" }),
     ]);
     expect(result).toEqual({
@@ -74,7 +73,7 @@ describe("validateQuestions", () => {
   });
 
   it("rejects empty question id", () => {
-    const result = validateQuestions([choiceQ({ id: "  " })]);
+    const result = validateQuestions([singleQ({ id: "  " })]);
     expect(result).toEqual({
       valid: false,
       error: "Question 1 has an empty id.",
@@ -82,7 +81,7 @@ describe("validateQuestions", () => {
   });
 
   it("rejects empty question header", () => {
-    const result = validateQuestions([choiceQ({ header: "" })]);
+    const result = validateQuestions([singleQ({ header: "" })]);
     expect(result).toEqual({
       valid: false,
       error: 'Question "q1" has an empty header.',
@@ -90,16 +89,16 @@ describe("validateQuestions", () => {
   });
 
   it("rejects empty question prompt", () => {
-    const result = validateQuestions([choiceQ({ prompt: "  " })]);
+    const result = validateQuestions([singleQ({ prompt: "  " })]);
     expect(result).toEqual({
       valid: false,
       error: 'Question "q1" has an empty prompt.',
     });
   });
 
-  it("rejects choice with fewer than 2 options", () => {
+  it("rejects question with fewer than 2 options", () => {
     const result = validateQuestions([
-      choiceQ({ options: [{ value: "a", label: "A" }] }),
+      singleQ({ options: [{ label: "A", value: "a" }] }),
     ]);
     expect(result).toEqual({
       valid: false,
@@ -107,12 +106,12 @@ describe("validateQuestions", () => {
     });
   });
 
-  it("rejects choice with more than 12 options", () => {
+  it("rejects question with more than 12 options", () => {
     const options = Array.from({ length: 13 }, (_, i) => ({
-      value: `v${i}`,
       label: `L${i}`,
+      value: `v${i}`,
     }));
-    const result = validateQuestions([choiceQ({ options })]);
+    const result = validateQuestions([singleQ({ options })]);
     expect(result).toEqual({
       valid: false,
       error: 'Question "q1" must have 2-12 options.',
@@ -121,10 +120,10 @@ describe("validateQuestions", () => {
 
   it("rejects duplicate option values", () => {
     const result = validateQuestions([
-      choiceQ({
+      singleQ({
         options: [
-          { value: "same", label: "A" },
-          { value: "same", label: "B" },
+          { label: "A", value: "same" },
+          { label: "B", value: "same" },
         ],
       }),
     ]);
@@ -136,10 +135,10 @@ describe("validateQuestions", () => {
 
   it("rejects empty option value", () => {
     const result = validateQuestions([
-      choiceQ({
+      singleQ({
         options: [
-          { value: "", label: "A" },
-          { value: "b", label: "B" },
+          { label: "A", value: "" },
+          { label: "B", value: "b" },
         ],
       }),
     ]);
@@ -151,10 +150,10 @@ describe("validateQuestions", () => {
 
   it("rejects empty option label", () => {
     const result = validateQuestions([
-      choiceQ({
+      singleQ({
         options: [
-          { value: "a", label: "  " },
-          { value: "b", label: "B" },
+          { label: "  ", value: "a" },
+          { label: "B", value: "b" },
         ],
       }),
     ]);
@@ -164,8 +163,8 @@ describe("validateQuestions", () => {
     });
   });
 
-  it("rejects choice recommendation not matching any option", () => {
-    const result = validateQuestions([choiceQ({ recommendation: "nope" })]);
+  it("rejects recommendation not matching any option", () => {
+    const result = validateQuestions([singleQ({ recommendation: "nope" })]);
     expect(result).toEqual({
       valid: false,
       error:
@@ -173,19 +172,43 @@ describe("validateQuestions", () => {
     });
   });
 
-  it("accepts choice with valid recommendation", () => {
-    const result = validateQuestions([choiceQ({ recommendation: "a" })]);
+  it("accepts question with valid recommendation", () => {
+    const result = validateQuestions([singleQ({ recommendation: "a" })]);
     expect(result).toEqual({ valid: true });
   });
 
-  it("rejects multi-choice recommendation not matching any option", () => {
-    const result = validateQuestions([
-      multiQ({ recommendation: ["a", "nope"] }),
-    ]);
+  it("accepts multi-select with valid recommendation", () => {
+    const result = validateQuestions([multiQ({ recommendation: "a" })]);
+    expect(result).toEqual({ valid: true });
+  });
+
+  it("rejects multi-select recommendation not matching any option", () => {
+    const result = validateQuestions([multiQ({ recommendation: "nope" })]);
     expect(result).toEqual({
       valid: false,
       error:
         'Question "q1" recommendation "nope" does not match any option value.',
+    });
+  });
+
+  it("accepts options with value omitted (defaults to label)", () => {
+    const result = validateQuestions([
+      singleQ({
+        options: [{ label: "Alpha" }, { label: "Beta" }],
+      }),
+    ]);
+    expect(result).toEqual({ valid: true });
+  });
+
+  it("rejects duplicate effective values when value omitted", () => {
+    const result = validateQuestions([
+      singleQ({
+        options: [{ label: "Same" }, { label: "Same" }],
+      }),
+    ]);
+    expect(result).toEqual({
+      valid: false,
+      error: 'Question "q1" has duplicate option value "Same".',
     });
   });
 });

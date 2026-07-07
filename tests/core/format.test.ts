@@ -12,7 +12,6 @@ import type {
 } from "../../src/core/types.ts";
 
 const singleQ: NormalizedQuestion = {
-  type: "single-choice",
   id: "scope",
   header: "Scope",
   prompt: "Pick scope",
@@ -20,13 +19,13 @@ const singleQ: NormalizedQuestion = {
     { value: "small", label: "Small" },
     { value: "large", label: "Large" },
   ],
+  multiSelect: false,
   recommendation: null,
   allowOther: false,
   allowChat: false,
 };
 
 const multiQ: NormalizedQuestion = {
-  type: "multi-choice",
   id: "features",
   header: "Features",
   prompt: "Select features",
@@ -35,7 +34,9 @@ const multiQ: NormalizedQuestion = {
     { value: "logging", label: "Logging" },
     { value: "cache", label: "Cache" },
   ],
-  recommendation: [],
+  multiSelect: true,
+  recommendation: null,
+  allowOther: false,
   allowChat: false,
 };
 
@@ -50,7 +51,7 @@ describe("formatModelLine", () => {
     );
   });
 
-  it("formats multi-choice options", () => {
+  it("formats multi-select options", () => {
     const response: QuestionResponse = {
       questionId: "features",
       selection: {

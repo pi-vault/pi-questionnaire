@@ -1,29 +1,19 @@
-import type { QuestionOption } from "./schema.ts";
+export interface NormalizedOption {
+  label: string;
+  value: string;
+  description?: string;
+}
 
-export interface NormalizedSingleChoiceQuestion {
-  type: "single-choice";
+export interface NormalizedQuestion {
   id: string;
   header: string;
   prompt: string;
-  options: QuestionOption[];
+  options: NormalizedOption[];
+  multiSelect: boolean;
   recommendation: string | null;
   allowOther: boolean;
   allowChat: boolean;
 }
-
-export interface NormalizedMultiChoiceQuestion {
-  type: "multi-choice";
-  id: string;
-  header: string;
-  prompt: string;
-  options: QuestionOption[];
-  recommendation: string[];
-  allowChat: boolean;
-}
-
-export type NormalizedQuestion =
-  | NormalizedSingleChoiceQuestion
-  | NormalizedMultiChoiceQuestion;
 
 export interface SelectedOption {
   value: string;

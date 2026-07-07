@@ -4,6 +4,7 @@ import {
   MAX_QUESTIONS,
   MIN_OPTIONS,
   MIN_QUESTIONS,
+  QuestionnaireParamsSchema,
 } from "../../src/core/schema.ts";
 
 describe("schema constraint constants", () => {
@@ -21,5 +22,12 @@ describe("schema constraint constants", () => {
 
   it("exports MAX_OPTIONS as 12", () => {
     expect(MAX_OPTIONS).toBe(12);
+  });
+});
+
+describe("compiled JSON Schema", () => {
+  it("contains no anyOf constructs", () => {
+    const json = JSON.stringify(QuestionnaireParamsSchema);
+    expect(json).not.toContain("anyOf");
   });
 });

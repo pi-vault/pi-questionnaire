@@ -5,16 +5,10 @@ export {
   MIN_OPTIONS,
   MAX_OPTIONS,
 } from "./schema.ts";
+export type { QuestionOption, QuestionInput } from "./schema.ts";
 export type {
-  QuestionOption,
-  SingleChoiceQuestionInput,
-  MultiChoiceQuestionInput,
-  QuestionInput,
-} from "./schema.ts";
-export type {
-  NormalizedMultiChoiceQuestion,
+  NormalizedOption,
   NormalizedQuestion,
-  NormalizedSingleChoiceQuestion,
   QuestionnaireResult,
   QuestionResponse,
   QuestionSelection,

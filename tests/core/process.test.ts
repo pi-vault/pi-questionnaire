@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { QuestionInput } from "../../src/core/schema.ts";
 import { processQuestions } from "../../src/core/process.ts";
 
-function choiceQ(
-  overrides: Partial<QuestionInput & { type: "single-choice" }> = {},
-): QuestionInput {
+function choiceQ(overrides: Partial<QuestionInput> = {}): QuestionInput {
   return {
-    type: "single-choice",
     id: "q1",
     header: "Q1",
     prompt: "Pick one",
@@ -65,10 +62,24 @@ describe("processQuestions", () => {
     if (result.ok) {
       const q = result.questions[0];
       expect(q.prompt).toBe("Pick");
-      if (q.type === "single-choice") {
-        expect(q.options[0].value).toBe("a");
-        expect(q.options[0].label).toBe("A");
-      }
+      expect(q.options[0].value).toBe("a");
+      expect(q.options[0].label).toBe("A");
+    }
+  });
+
+  it("sets multiSelect false by default", () => {
+    const result = processQuestions([choiceQ()]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.questions[0].multiSelect).toBe(false);
+    }
+  });
+
+  it("preserves multiSelect: true", () => {
+    const result = processQuestions([choiceQ({ multiSelect: true })]);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.questions[0].multiSelect).toBe(true);
     }
   });
 });

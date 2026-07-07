@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type {
-  NormalizedMultiChoiceQuestion,
-  NormalizedQuestion,
-  NormalizedSingleChoiceQuestion,
-} from "../../src/core/types.ts";
+import type { NormalizedQuestion } from "../../src/core/types.ts";
 import { initState } from "../../src/tui/state.ts";
 import { mapInput } from "../../src/tui/input.ts";
 
 const questions: NormalizedQuestion[] = [
   {
-    type: "single-choice",
+    multiSelect: false,
     id: "scope",
     header: "Scope",
     prompt: "Pick scope",
@@ -22,7 +18,7 @@ const questions: NormalizedQuestion[] = [
     allowChat: false,
   },
   {
-    type: "multi-choice",
+    multiSelect: true,
     id: "features",
     header: "Features",
     prompt: "Pick features",
@@ -30,13 +26,14 @@ const questions: NormalizedQuestion[] = [
       { value: "auth", label: "Auth" },
       { value: "log", label: "Logging" },
     ],
-    recommendation: [],
+    recommendation: null,
+    allowOther: false,
     allowChat: false,
   },
 ];
 
-const singleWithOther: NormalizedSingleChoiceQuestion = {
-  type: "single-choice",
+const singleWithOther: NormalizedQuestion = {
+  multiSelect: false,
   id: "scope",
   header: "Scope",
   prompt: "Pick scope",
@@ -50,8 +47,8 @@ const singleWithOther: NormalizedSingleChoiceQuestion = {
 };
 const questionsWithOther: NormalizedQuestion[] = [singleWithOther];
 
-const singleWithChat: NormalizedSingleChoiceQuestion = {
-  type: "single-choice",
+const singleWithChat: NormalizedQuestion = {
+  multiSelect: false,
   id: "scope",
   header: "Scope",
   prompt: "Pick scope",
@@ -65,8 +62,8 @@ const singleWithChat: NormalizedSingleChoiceQuestion = {
 };
 const questionsWithChat: NormalizedQuestion[] = [singleWithChat];
 
-const multiWithChat: NormalizedMultiChoiceQuestion = {
-  type: "multi-choice",
+const multiWithChat: NormalizedQuestion = {
+  multiSelect: true,
   id: "features",
   header: "Features",
   prompt: "Pick features",
@@ -74,7 +71,8 @@ const multiWithChat: NormalizedMultiChoiceQuestion = {
     { value: "auth", label: "Auth" },
     { value: "log", label: "Logging" },
   ],
-  recommendation: [],
+  recommendation: null,
+  allowOther: false,
   allowChat: true,
 };
 const questionsMultiWithChat: NormalizedQuestion[] = [multiWithChat];

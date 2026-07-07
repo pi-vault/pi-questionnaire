@@ -8,17 +8,19 @@ export const MIN_OPTIONS = 2;
 export const MAX_OPTIONS = 12;
 
 export const QuestionOptionSchema = Type.Object({
-  value: Type.String({
-    description: "Stable value returned when this option is selected",
-  }),
   label: Type.String({ description: "User-facing label for this option" }),
+  value: Type.Optional(
+    Type.String({
+      description:
+        "Stable value returned when this option is selected (defaults to label)",
+    }),
+  ),
   description: Type.Optional(
     Type.String({ description: "Optional helper text shown below the label" }),
   ),
 });
 
-export const SingleChoiceQuestionSchema = Type.Object({
-  type: Type.Literal("single-choice"),
+export const QuestionSchema = Type.Object({
   id: Type.String({ description: "Unique question identifier" }),
   header: Type.String({
     description: "Short label shown in tabs and summaries",
@@ -29,6 +31,11 @@ export const SingleChoiceQuestionSchema = Type.Object({
     maxItems: MAX_OPTIONS,
     description: `Available options (${MIN_OPTIONS}-${MAX_OPTIONS})`,
   }),
+  multiSelect: Type.Optional(
+    Type.Boolean({
+      description: "Allow multiple selections (default: false)",
+    }),
+  ),
   recommendation: Type.Optional(
     Type.String({ description: "Value of the recommended option" }),
   ),
@@ -46,34 +53,6 @@ export const SingleChoiceQuestionSchema = Type.Object({
   ),
 });
 
-export const MultiChoiceQuestionSchema = Type.Object({
-  type: Type.Literal("multi-choice"),
-  id: Type.String({ description: "Unique question identifier" }),
-  header: Type.String({
-    description: "Short label shown in tabs and summaries",
-  }),
-  prompt: Type.String({ description: "Full question text shown to the user" }),
-  options: Type.Array(QuestionOptionSchema, {
-    minItems: MIN_OPTIONS,
-    maxItems: MAX_OPTIONS,
-    description: `Available options (${MIN_OPTIONS}-${MAX_OPTIONS})`,
-  }),
-  recommendation: Type.Optional(
-    Type.Array(Type.String(), { description: "Values of recommended options" }),
-  ),
-  allowChat: Type.Optional(
-    Type.Boolean({
-      description:
-        'Append a "Chat about this" option to signal the agent for discussion (default: true)',
-    }),
-  ),
-});
-
-const QuestionSchema = Type.Union([
-  SingleChoiceQuestionSchema,
-  MultiChoiceQuestionSchema,
-]);
-
 export const QuestionnaireParamsSchema = Type.Object({
   questions: Type.Array(QuestionSchema, {
     minItems: MIN_QUESTIONS,
@@ -84,8 +63,4 @@ export const QuestionnaireParamsSchema = Type.Object({
 
 // Static type aliases — derived from schemas
 export type QuestionOption = Static<typeof QuestionOptionSchema>;
-export type SingleChoiceQuestionInput = Static<
-  typeof SingleChoiceQuestionSchema
->;
-export type MultiChoiceQuestionInput = Static<typeof MultiChoiceQuestionSchema>;
 export type QuestionInput = Static<typeof QuestionSchema>;
