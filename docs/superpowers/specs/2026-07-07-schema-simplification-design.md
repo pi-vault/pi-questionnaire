@@ -10,13 +10,13 @@ The issue is model-level and persists across both Anthropic and OpenAI API forma
 
 Five community implementations of the same tool concept were compared:
 
-| Package | Uses Union? | M3-safe? |
-|---------|------------|----------|
-| pi coding-agent example | No | Yes |
-| rpiv-ask-user-question | No | Yes |
-| supi-ask-user | Yes (`Type.Union([Choice, Text])`) | No |
-| dreki-gg questionnaire | No | Yes |
-| amosblomqvist ask-user-question | No | Yes |
+| Package                         | Uses Union?                        | M3-safe? |
+| ------------------------------- | ---------------------------------- | -------- |
+| pi coding-agent example         | No                                 | Yes      |
+| rpiv-ask-user-question          | No                                 | Yes      |
+| supi-ask-user                   | Yes (`Type.Union([Choice, Text])`) | No       |
+| dreki-gg questionnaire          | No                                 | Yes      |
+| amosblomqvist ask-user-question | No                                 | Yes      |
 
 Three of four M3-safe packages use a single flat question schema with a boolean or enum field to differentiate single-select from multi-select, eliminating `anyOf` entirely from the compiled JSON Schema.
 
@@ -29,12 +29,16 @@ Merge `SingleChoiceQuestionSchema` and `MultiChoiceQuestionSchema` into a single
 ```ts
 const QuestionOptionSchema = Type.Object({
   label: Type.String({ description: "User-facing label" }),
-  value: Type.Optional(Type.String({
-    description: "Stable value returned when selected (defaults to label)",
-  })),
-  description: Type.Optional(Type.String({
-    description: "Helper text shown below the label",
-  })),
+  value: Type.Optional(
+    Type.String({
+      description: "Stable value returned when selected (defaults to label)",
+    }),
+  ),
+  description: Type.Optional(
+    Type.String({
+      description: "Helper text shown below the label",
+    }),
+  ),
 });
 
 const QuestionSchema = Type.Object({
@@ -46,18 +50,27 @@ const QuestionSchema = Type.Object({
     maxItems: 12,
     description: "Available options (2-12)",
   }),
-  multiSelect: Type.Optional(Type.Boolean({
-    description: "Allow multiple selections (default: false)",
-  })),
-  recommendation: Type.Optional(Type.String({
-    description: "Value of the recommended option",
-  })),
-  allowOther: Type.Optional(Type.Boolean({
-    description: 'Append a "Type something." option for custom text input (default: true)',
-  })),
-  allowChat: Type.Optional(Type.Boolean({
-    description: 'Append a "Chat about this" option (default: true)',
-  })),
+  multiSelect: Type.Optional(
+    Type.Boolean({
+      description: "Allow multiple selections (default: false)",
+    }),
+  ),
+  recommendation: Type.Optional(
+    Type.String({
+      description: "Value of the recommended option",
+    }),
+  ),
+  allowOther: Type.Optional(
+    Type.Boolean({
+      description:
+        'Append a "Type something." option for custom text input (default: true)',
+    }),
+  ),
+  allowChat: Type.Optional(
+    Type.Boolean({
+      description: 'Append a "Chat about this" option (default: true)',
+    }),
+  ),
 });
 
 const QuestionnaireParamsSchema = Type.Object({
@@ -80,10 +93,10 @@ interface NormalizedQuestion {
   id: string;
   header: string;
   prompt: string;
-  options: QuestionOption[];  // value guaranteed populated after normalization
+  options: QuestionOption[]; // value guaranteed populated after normalization
   multiSelect: boolean;
   recommendation: string | null;
-  allowOther: boolean;        // only effective when multiSelect is false
+  allowOther: boolean; // only effective when multiSelect is false
   allowChat: boolean;
 }
 ```
@@ -95,11 +108,11 @@ interface NormalizedQuestion {
 One new responsibility: defaulting `value` to `label` on options.
 
 ```ts
-options: input.options.map(o => ({
+options: input.options.map((o) => ({
   label: o.label,
   value: o.value ?? o.label,
   description: o.description,
-}))
+}));
 ```
 
 Single normalization path for all questions (no branching on `input.type`). `multiSelect` defaults to `false`.
@@ -125,18 +138,18 @@ This is a breaking change to the schema (tool input) contract. Models that previ
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/core/schema.ts` | Replace union with single flat schema, make value optional |
-| `src/core/types.ts` | Merge two interfaces into one with `multiSelect: boolean` |
-| `src/core/normalize.ts` | Single normalization path, default value to label |
-| `src/core/validate.ts` | Remove type-discriminator branching |
-| `src/core/process.ts` | Remove type-discriminator branching |
+| File                         | Change                                                               |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `src/core/schema.ts`         | Replace union with single flat schema, make value optional           |
+| `src/core/types.ts`          | Merge two interfaces into one with `multiSelect: boolean`            |
+| `src/core/normalize.ts`      | Single normalization path, default value to label                    |
+| `src/core/validate.ts`       | Remove type-discriminator branching                                  |
+| `src/core/process.ts`        | Remove type-discriminator branching                                  |
 | `src/tui/render-question.ts` | `question.multiSelect` instead of `question.type === "multi-choice"` |
-| `src/tui/render.ts` | Same field rename |
-| `src/tui/state.ts` | Same field rename |
-| `src/tui/input.ts` | Same field rename |
-| `tests/**` | Update fixtures from `type:` to `multiSelect:` |
+| `src/tui/render.ts`          | Same field rename                                                    |
+| `src/tui/state.ts`           | Same field rename                                                    |
+| `src/tui/input.ts`           | Same field rename                                                    |
+| `tests/**`                   | Update fixtures from `type:` to `multiSelect:`                       |
 
 No new files. No new dependencies.
 
