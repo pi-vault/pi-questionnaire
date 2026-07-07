@@ -8,7 +8,6 @@ import {
   currentQuestion,
   cursorTarget,
   getSelectedValue,
-  hasSelection,
   initState,
   reduce,
   visibleRowCount,
@@ -622,19 +621,6 @@ describe("confirmMulti action", () => {
       questionsWithChat,
     );
     expect(next.activeTab).toBe(questionsWithChat.length); // review tab
-  });
-});
-
-describe("hasSelection", () => {
-  it("returns false when question has no answer", () => {
-    const state = initState(questions);
-    expect(hasSelection(state, "scope")).toBe(false);
-  });
-
-  it("returns true when question has an answer", () => {
-    const state = initState(questions);
-    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
-    expect(hasSelection(state, "scope")).toBe(true);
   });
 });
 

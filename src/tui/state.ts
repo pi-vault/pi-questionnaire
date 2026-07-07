@@ -141,13 +141,6 @@ export function getSelectedValue(
   return null;
 }
 
-export function hasSelection(
-  state: QuestionnaireState,
-  questionId: string,
-): boolean {
-  return state.answers.has(questionId);
-}
-
 function cloneState(state: QuestionnaireState): QuestionnaireState {
   return {
     activeTab: state.activeTab,

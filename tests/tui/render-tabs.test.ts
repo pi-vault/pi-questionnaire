@@ -35,7 +35,7 @@ const questions: NormalizedQuestion[] = [
 describe("renderTabBar", () => {
   it("renders tab labels with answered/unanswered markers", () => {
     const answeredIds = new Set<string>();
-    const lines = renderTabBar(questions, 0, answeredIds, new Set(), noopTheme, 80);
+    const lines = renderTabBar(questions, 0, answeredIds, new Set(), noopTheme);
     const joined = lines.join("");
     expect(joined).toContain("Scope");
     expect(joined).toContain("Notes");
@@ -44,7 +44,7 @@ describe("renderTabBar", () => {
 
   it("marks answered questions with filled marker", () => {
     const answeredIds = new Set(["scope"]);
-    const lines = renderTabBar(questions, 0, answeredIds, new Set(), noopTheme, 80);
+    const lines = renderTabBar(questions, 0, answeredIds, new Set(), noopTheme);
     const joined = lines.join("");
     // Filled marker for answered
     expect(joined).toContain("\u25A0 Scope");
@@ -55,7 +55,7 @@ describe("renderTabBar", () => {
   it("highlights active tab with bg wrapper", () => {
     const answeredIds = new Set<string>();
     const bgTheme = { ...noopTheme, bg: (_c: string, t: string) => `[${t}]` };
-    const lines = renderTabBar(questions, 0, answeredIds, new Set(), bgTheme, 80);
+    const lines = renderTabBar(questions, 0, answeredIds, new Set(), bgTheme);
     const joined = lines.join("");
     // Active tab (index 0 = Scope) gets bg wrap: [text]
     expect(joined).toContain("[ \u25A1 Scope ]");
@@ -64,7 +64,7 @@ describe("renderTabBar", () => {
   it("shows [n] marker for questions with notes", () => {
     const answeredIds = new Set(["scope"]);
     const notedIds = new Set(["scope"]);
-    const lines = renderTabBar(questions, 0, answeredIds, notedIds, noopTheme, 80);
+    const lines = renderTabBar(questions, 0, answeredIds, notedIds, noopTheme);
     const joined = lines.join("");
     expect(joined).toContain("Scope [n]");
     // Question without note should not have [n]

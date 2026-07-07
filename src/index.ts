@@ -7,7 +7,7 @@ import {
   formatAnswerForRender,
 } from "./core/index.ts";
 import type { QuestionInput, QuestionnaireResult } from "./core/index.ts";
-import { runQuestionnaireUI } from "./tui/index.ts";
+import { runQuestionnaireUI } from "./tui/questionnaire-ui.ts";
 
 function errorResult(error: string): {
   content: { type: "text"; text: string }[];

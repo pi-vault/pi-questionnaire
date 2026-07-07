@@ -7,7 +7,6 @@ export function renderTabBar(
   answeredIds: Set<string>,
   notedIds: Set<string>,
   theme: RenderTheme,
-  _width: number,
 ): string[] {
   const reviewTabIndex = questions.length;
   const allAnswered = questions.every((q) => answeredIds.has(q.id));
