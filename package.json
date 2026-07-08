@@ -1,6 +1,6 @@
 {
   "name": "@pi-vault/pi-questionnaire",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Pi extension for collecting structured user decisions in one interactive questionnaire",
   "author": "Lanh Hoang <lanhhoang@users.noreply.github.com>",
