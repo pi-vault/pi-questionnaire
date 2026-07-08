@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedQuestion } from "../../src/core/types.ts";
 import { initState } from "../../src/tui/state.ts";
-import { mapInput } from "../../src/tui/input.ts";
+import { interpret, type Effect, type InputContext } from "../../src/tui/input.ts";
 
 const questions: NormalizedQuestion[] = [
   {
@@ -77,445 +77,355 @@ const multiWithChat: NormalizedQuestion = {
 };
 const questionsMultiWithChat: NormalizedQuestion[] = [multiWithChat];
 
-describe("mapInput", () => {
+function ctx(
+  qs: NormalizedQuestion[],
+  stateOverrides: Partial<ReturnType<typeof initState>> = {},
+  notesEditorText = "",
+): InputContext {
+  return {
+    state: { ...initState(qs), ...stateOverrides },
+    questions: qs,
+    notesEditorText,
+  };
+}
+
+function dispatched(effects: Effect[]) {
+  return effects
+    .filter((e): e is Extract<Effect, { type: "dispatch" }> => e.type === "dispatch")
+    .map((e) => e.action);
+}
+
+describe("interpret", () => {
   it("Esc returns finalize cancelled", () => {
-    const state = initState(questions);
-    const result = mapInput("\x1b", state, questions);
-    expect(result).toEqual({ type: "finalize", cancelled: true });
+    const effects = interpret("\x1b", ctx(questions));
+    expect(effects).toEqual([{ type: "finalize", cancelled: true }]);
   });
 
   it("Up on single-choice returns moveCursor up", () => {
-    const state = { ...initState(questions), optionCursor: 1 };
-    const result = mapInput("\x1b[A", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "moveCursor", direction: "up" });
-    }
+    const effects = interpret("\x1b[A", ctx(questions, { optionCursor: 1 }));
+    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "up" }]);
   });
 
   it("Space on single-choice returns selectOption", () => {
-    const state = initState(questions);
-    const result = mapInput(" ", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action.type).toBe("selectOption");
-    }
+    const effects = interpret(" ", ctx(questions));
+    const actions = dispatched(effects);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].type).toBe("selectOption");
   });
 
   it("Space on multi-choice returns toggleCheckbox", () => {
-    const state = { ...initState(questions), activeTab: 1 };
-    const result = mapInput(" ", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action.type).toBe("toggleCheckbox");
-    }
+    const effects = interpret(" ", ctx(questions, { activeTab: 1 }));
+    const actions = dispatched(effects);
+    expect(actions).toHaveLength(1);
+    expect(actions[0].type).toBe("toggleCheckbox");
   });
 
   it("Enter on review with all answered returns finalize submitted", () => {
     const state = { ...initState(questions), activeTab: questions.length };
-    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    state.answers.set("scope", { kind: "option" as const, value: "small", label: "Small" });
     state.answers.set("features", {
-      kind: "options",
+      kind: "options" as const,
       selected: [{ value: "auth", label: "Auth" }],
     });
-    const result = mapInput("\r", state, questions);
-    expect(result).toEqual({ type: "finalize", cancelled: false });
+    const effects = interpret("\r", { state, questions, notesEditorText: "" });
+    expect(effects).toEqual([{ type: "finalize", cancelled: false }]);
   });
 
   it("Space on review navigates to question tab", () => {
-    const state = {
-      ...initState(questions),
-      activeTab: questions.length,
-      reviewCursor: 1,
-    };
-    const result = mapInput(" ", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "switchTab", tab: 1 });
-    }
+    const effects = interpret(
+      " ",
+      ctx(questions, { activeTab: questions.length, reviewCursor: 1 }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "switchTab", tab: 1 }]);
   });
 
   it("Down on single-choice returns moveCursor down", () => {
-    const state = initState(questions);
-    const result = mapInput("\x1b[B", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "moveCursor", direction: "down" });
-    }
+    const effects = interpret("\x1b[B", ctx(questions));
+    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "down" }]);
   });
 
-  it("Enter on single-choice returns selectOption", () => {
-    const state = initState(questions);
-    const result = mapInput("\r", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action.type).toBe("selectOption");
-      if (result.action.type === "selectOption") {
-        expect(result.action.questionId).toBe("scope");
-        expect(result.action.value).toBe("small");
-      }
-    }
-  });
-
-  it("Up on review returns moveCursor up", () => {
-    const state = {
-      ...initState(questions),
-      activeTab: questions.length,
-      reviewCursor: 1,
-    };
-    const result = mapInput("\x1b[A", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "moveCursor", direction: "up" });
-    }
-  });
-
-  it("Down on review returns moveCursor down", () => {
-    const state = { ...initState(questions), activeTab: questions.length };
-    const result = mapInput("\x1b[B", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "moveCursor", direction: "down" });
-    }
-  });
-
-  it("Enter on review without all answered navigates to question at cursor", () => {
-    const state = { ...initState(questions), activeTab: questions.length };
-    const result = mapInput("\r", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "switchTab", tab: 0 });
-    }
-  });
-
-  it("Up on multi-choice returns moveCursor up", () => {
-    const state = { ...initState(questions), activeTab: 1, optionCursor: 1 };
-    const result = mapInput("\x1b[A", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "moveCursor", direction: "up" });
-    }
-  });
-
-  it("Enter on multi-choice option returns toggleCheckbox", () => {
-    const state = { ...initState(questions), activeTab: 1, optionCursor: 0 };
-    const result = mapInput("\r", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "toggleCheckbox",
-        questionId: "features",
-        value: "auth",
-      });
-    }
-  });
-
-  it("Right arrow on single-choice returns switchTab to next", () => {
-    const state = initState(questions);
-    const result = mapInput("\x1b[C", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "switchTab", tab: 1 });
-    }
-  });
-
-  it("Left arrow on single-choice returns switchTab to previous", () => {
-    const state = { ...initState(questions), activeTab: 1 };
-    const result = mapInput("\x1b[D", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "switchTab", tab: 0 });
-    }
-  });
-
-  it("Right arrow wraps from last question tab to review", () => {
-    const state = {
-      ...initState(questions),
-      activeTab: questions.length - 1,
-    };
-    const result = mapInput("\x1b[C", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "switchTab",
-        tab: questions.length,
-      });
-    }
-  });
-
-  it("Left arrow on review tab returns switchTab", () => {
-    const state = { ...initState(questions), activeTab: questions.length };
-    const result = mapInput("\x1b[D", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "switchTab",
-        tab: questions.length - 1,
-      });
-    }
-  });
-
-  it("unrecognized key on single-choice returns none", () => {
-    const state = initState(questions);
-    const result = mapInput("x", state, questions);
-    expect(result).toEqual({ type: "none" });
-  });
-
-  it("Esc in typing mode returns cancelTyping", () => {
-    const state = {
-      ...initState(questionsWithOther),
-      inputMode: "typing" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("\x1b", state, questionsWithOther);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "cancelTyping" });
-    }
-  });
-
-  it("Up in typing mode returns cancelTyping", () => {
-    const state = {
-      ...initState(questionsWithOther),
-      inputMode: "typing" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("\x1b[A", state, questionsWithOther);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "cancelTyping" });
-    }
-  });
-
-  it("Down in typing mode returns cancelTyping", () => {
-    const state = {
-      ...initState(questionsWithOther),
-      inputMode: "typing" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("\x1b[B", state, questionsWithOther);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "cancelTyping" });
-    }
-  });
-
-  it("forwards Enter to editor in typing mode", () => {
-    const state = {
-      ...initState(questionsWithOther),
-      inputMode: "typing" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("\r", state, questionsWithOther);
-    expect(result).toEqual({ type: "forward-to-editor" });
-  });
-
-  it("forwards character keys to editor in typing mode", () => {
-    const state = {
-      ...initState(questionsWithOther),
-      inputMode: "typing" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("a", state, questionsWithOther);
-    expect(result).toEqual({ type: "forward-to-editor" });
-  });
-
-  it("Space on sentinel returns enterTyping", () => {
-    const state = {
-      ...initState(questionsWithOther),
-      optionCursor: 2, // sentinel position (2 options)
-    };
-    const result = mapInput(" ", state, questionsWithOther);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "enterTyping",
-        questionId: "scope",
-      });
-    }
-  });
-
-  it("Enter on sentinel returns enterTyping", () => {
-    const state = {
-      ...initState(questionsWithOther),
-      optionCursor: 2, // sentinel position (2 options)
-    };
-    const result = mapInput("\r", state, questionsWithOther);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "enterTyping",
-        questionId: "scope",
-      });
-    }
-  });
-
-  it("Space on chat sentinel (single-choice) returns selectChat", () => {
-    const state = {
-      ...initState(questionsWithChat),
-      optionCursor: 2, // chat sentinel (2 options, no allowOther)
-    };
-    const result = mapInput(" ", state, questionsWithChat);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "selectChat",
-        questionId: "scope",
-      });
-    }
-  });
-
-  it("Enter on chat sentinel (single-choice) returns selectChat", () => {
-    const state = {
-      ...initState(questionsWithChat),
-      optionCursor: 2, // chat sentinel (2 options, no allowOther)
-    };
-    const result = mapInput("\r", state, questionsWithChat);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "selectChat",
-        questionId: "scope",
-      });
-    }
-  });
-
-  it("Space on chat sentinel (multi-choice) returns selectChat", () => {
-    const state = {
-      ...initState(questionsMultiWithChat),
-      optionCursor: 2, // chat sentinel (2 options, allowChat: true)
-    };
-    const result = mapInput(" ", state, questionsMultiWithChat);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "selectChat",
-        questionId: "features",
-      });
-    }
-  });
-
-  it("Enter on chat sentinel (multi-choice) returns selectChat", () => {
-    const state = {
-      ...initState(questionsMultiWithChat),
-      optionCursor: 2, // chat sentinel (2 options, allowChat: true)
-    };
-    const result = mapInput("\r", state, questionsMultiWithChat);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "selectChat",
-        questionId: "features",
-      });
-    }
-  });
-
-  it("Space on Next row (multi-choice) returns confirmMulti", () => {
-    // questions[1] has allowChat: false, so Next is at cursor 2 (options.length)
-    const state = {
-      ...initState(questions),
-      activeTab: 1,
-      optionCursor: 2, // Next row
-    };
-    const result = mapInput(" ", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "confirmMulti",
-        questionId: "features",
-      });
-    }
-  });
-
-  it("Enter on Next row (multi-choice) returns confirmMulti", () => {
-    // questions[1] has allowChat: false, so Next is at cursor 2 (options.length)
-    const state = {
-      ...initState(questions),
-      activeTab: 1,
-      optionCursor: 2, // Next row
-    };
-    const result = mapInput("\r", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "confirmMulti",
-        questionId: "features",
-      });
-    }
-  });
-
-  it("Esc in notes mode returns cancelNotes", () => {
-    const state = {
-      ...initState(questions),
-      inputMode: "notes" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("\x1b", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({ type: "cancelNotes" });
-    }
-  });
-
-  it("Enter in notes mode returns forward-to-notes-editor", () => {
-    const state = {
-      ...initState(questions),
-      inputMode: "notes" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("\r", state, questions);
-    expect(result).toEqual({ type: "forward-to-notes-editor" });
-  });
-
-  it("character keys in notes mode return forward-to-notes-editor", () => {
-    const state = {
-      ...initState(questions),
-      inputMode: "notes" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("a", state, questions);
-    expect(result).toEqual({ type: "forward-to-notes-editor" });
-  });
-
-  it("Up in notes mode returns forward-to-notes-editor", () => {
-    const state = {
-      ...initState(questions),
-      inputMode: "notes" as const,
-      editingQuestionId: "scope",
-    };
-    const result = mapInput("\x1b[A", state, questions);
-    expect(result).toEqual({ type: "forward-to-notes-editor" });
-  });
-
-  it("Tab on answered question returns enterNotes", () => {
-    const state = initState(questions);
-    state.answers.set("scope", {
-      kind: "option",
+  it("Enter on single-choice returns selectOption with correct values", () => {
+    const effects = interpret("\r", ctx(questions));
+    const actions = dispatched(effects);
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toEqual({
+      type: "selectOption",
+      questionId: "scope",
       value: "small",
       label: "Small",
     });
-    const result = mapInput("\t", state, questions);
-    expect(result.type).toBe("action");
-    if (result.type === "action") {
-      expect(result.action).toEqual({
-        type: "enterNotes",
-        questionId: "scope",
-      });
-    }
   });
 
-  it("Tab on unanswered question returns none", () => {
+  it("Up on review returns moveCursor up", () => {
+    const effects = interpret(
+      "\x1b[A",
+      ctx(questions, { activeTab: questions.length, reviewCursor: 1 }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "up" }]);
+  });
+
+  it("Down on review returns moveCursor down", () => {
+    const effects = interpret(
+      "\x1b[B",
+      ctx(questions, { activeTab: questions.length }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "down" }]);
+  });
+
+  it("Enter on review without all answered navigates to question at cursor", () => {
+    const effects = interpret(
+      "\r",
+      ctx(questions, { activeTab: questions.length }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "switchTab", tab: 0 }]);
+  });
+
+  it("Up on multi-choice returns moveCursor up", () => {
+    const effects = interpret(
+      "\x1b[A",
+      ctx(questions, { activeTab: 1, optionCursor: 1 }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "up" }]);
+  });
+
+  it("Enter on multi-choice option returns toggleCheckbox", () => {
+    const effects = interpret(
+      "\r",
+      ctx(questions, { activeTab: 1, optionCursor: 0 }),
+    );
+    expect(dispatched(effects)).toEqual([{
+      type: "toggleCheckbox",
+      questionId: "features",
+      value: "auth",
+    }]);
+  });
+
+  it("Right arrow returns switchTab to next", () => {
+    const effects = interpret("\x1b[C", ctx(questions));
+    expect(dispatched(effects)).toEqual([{ type: "switchTab", tab: 1 }]);
+  });
+
+  it("Left arrow returns switchTab to previous", () => {
+    const effects = interpret("\x1b[D", ctx(questions, { activeTab: 1 }));
+    expect(dispatched(effects)).toEqual([{ type: "switchTab", tab: 0 }]);
+  });
+
+  it("Right arrow wraps from last question tab to review", () => {
+    const effects = interpret(
+      "\x1b[C",
+      ctx(questions, { activeTab: questions.length - 1 }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "switchTab", tab: questions.length }]);
+  });
+
+  it("Left arrow on review returns switchTab", () => {
+    const effects = interpret(
+      "\x1b[D",
+      ctx(questions, { activeTab: questions.length }),
+    );
+    expect(dispatched(effects)).toEqual([{
+      type: "switchTab",
+      tab: questions.length - 1,
+    }]);
+  });
+
+  it("unrecognized key on single-choice returns empty effects", () => {
+    const effects = interpret("x", ctx(questions));
+    expect(effects).toEqual([]);
+  });
+
+  it("Esc in typing mode returns cancelTyping + set-editor-text empty", () => {
+    const effects = interpret(
+      "\x1b",
+      ctx(questionsWithOther, {
+        inputMode: "typing",
+        editingQuestionId: "scope",
+      }),
+    );
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "cancelTyping" } },
+      { type: "set-editor-text", text: "" },
+    ]);
+  });
+
+  it("Up in typing mode returns cancelTyping + set-editor-text empty", () => {
+    const effects = interpret(
+      "\x1b[A",
+      ctx(questionsWithOther, {
+        inputMode: "typing",
+        editingQuestionId: "scope",
+      }),
+    );
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "cancelTyping" } },
+      { type: "set-editor-text", text: "" },
+    ]);
+  });
+
+  it("forwards Enter to editor in typing mode", () => {
+    const effects = interpret(
+      "\r",
+      ctx(questionsWithOther, {
+        inputMode: "typing",
+        editingQuestionId: "scope",
+      }),
+    );
+    expect(effects).toEqual([{ type: "forward-to-editor" }]);
+  });
+
+  it("forwards character keys to editor in typing mode", () => {
+    const effects = interpret(
+      "a",
+      ctx(questionsWithOther, {
+        inputMode: "typing",
+        editingQuestionId: "scope",
+      }),
+    );
+    expect(effects).toEqual([{ type: "forward-to-editor" }]);
+  });
+
+  it("Space on other sentinel returns enterTyping + set-editor-text", () => {
+    const effects = interpret(
+      " ",
+      ctx(questionsWithOther, { optionCursor: 2 }),
+    );
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "enterTyping", questionId: "scope" } },
+      { type: "set-editor-text", text: "" },
+    ]);
+  });
+
+  it("Space on other sentinel loads existing custom text", () => {
+    const state = { ...initState(questionsWithOther), optionCursor: 2 };
+    state.customText.set("scope", "existing text");
+    const effects = interpret(" ", {
+      state,
+      questions: questionsWithOther,
+      notesEditorText: "",
+    });
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "enterTyping", questionId: "scope" } },
+      { type: "set-editor-text", text: "existing text" },
+    ]);
+  });
+
+  it("Space on chat sentinel (single-choice) returns selectChat", () => {
+    const effects = interpret(
+      " ",
+      ctx(questionsWithChat, { optionCursor: 2 }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "selectChat", questionId: "scope" }]);
+  });
+
+  it("Space on chat sentinel (multi-choice) returns selectChat", () => {
+    const effects = interpret(
+      " ",
+      ctx(questionsMultiWithChat, { optionCursor: 2 }),
+    );
+    expect(dispatched(effects)).toEqual([{ type: "selectChat", questionId: "features" }]);
+  });
+
+  it("Space on Next row (multi-choice) returns confirmMulti", () => {
+    const effects = interpret(
+      " ",
+      ctx(questions, { activeTab: 1, optionCursor: 2 }),
+    );
+    expect(dispatched(effects)).toEqual([{
+      type: "confirmMulti",
+      questionId: "features",
+    }]);
+  });
+
+  it("Esc in notes mode returns cancelNotes + set-notes-editor-text empty", () => {
+    const effects = interpret(
+      "\x1b",
+      ctx(questions, { inputMode: "notes", editingQuestionId: "scope" }),
+    );
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "cancelNotes" } },
+      { type: "set-notes-editor-text", text: "" },
+    ]);
+  });
+
+  it("Enter in notes mode returns forward-to-notes-editor", () => {
+    const effects = interpret(
+      "\r",
+      ctx(questions, { inputMode: "notes", editingQuestionId: "scope" }),
+    );
+    expect(effects).toEqual([{ type: "forward-to-notes-editor" }]);
+  });
+
+  it("character keys in notes mode return forward-to-notes-editor", () => {
+    const effects = interpret(
+      "a",
+      ctx(questions, { inputMode: "notes", editingQuestionId: "scope" }),
+    );
+    expect(effects).toEqual([{ type: "forward-to-notes-editor" }]);
+  });
+
+  it("Up in notes mode saves notes and moves cursor up", () => {
+    const effects = interpret(
+      "\x1b[A",
+      ctx(questions, { inputMode: "notes", editingQuestionId: "scope" }, "my note"),
+    );
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "submitNotes", questionId: "scope", value: "my note" } },
+      { type: "dispatch", action: { type: "moveCursor", direction: "up" } },
+      { type: "set-notes-editor-text", text: "" },
+    ]);
+  });
+
+  it("Down in notes mode saves notes and moves cursor down", () => {
+    const effects = interpret(
+      "\x1b[B",
+      ctx(questions, { inputMode: "notes", editingQuestionId: "scope" }, "  note  "),
+    );
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "submitNotes", questionId: "scope", value: "note" } },
+      { type: "dispatch", action: { type: "moveCursor", direction: "down" } },
+      { type: "set-notes-editor-text", text: "" },
+    ]);
+  });
+
+  it("Tab on answered question returns enterNotes + set-notes-editor-text", () => {
     const state = initState(questions);
-    const result = mapInput("\t", state, questions);
-    expect(result).toEqual({ type: "none" });
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    const effects = interpret("\t", {
+      state,
+      questions,
+      notesEditorText: "",
+    });
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "enterNotes", questionId: "scope" } },
+      { type: "set-notes-editor-text", text: "" },
+    ]);
   });
 
-  it("Tab on review tab returns none", () => {
-    const state = {
-      ...initState(questions),
-      activeTab: questions.length,
-    };
-    const result = mapInput("\t", state, questions);
-    expect(result).toEqual({ type: "none" });
+  it("Tab on answered question with existing note loads it", () => {
+    const state = initState(questions);
+    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    state.notes.set("scope", "existing note");
+    const effects = interpret("\t", {
+      state,
+      questions,
+      notesEditorText: "",
+    });
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "enterNotes", questionId: "scope" } },
+      { type: "set-notes-editor-text", text: "existing note" },
+    ]);
+  });
+
+  it("Tab on unanswered question returns empty effects", () => {
+    const effects = interpret("\t", ctx(questions));
+    expect(effects).toEqual([]);
+  });
+
+  it("Tab on review tab returns empty effects", () => {
+    const effects = interpret(
+      "\t",
+      ctx(questions, { activeTab: questions.length }),
+    );
+    expect(effects).toEqual([]);
   });
 });

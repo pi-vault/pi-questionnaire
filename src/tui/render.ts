@@ -83,7 +83,7 @@ export function renderQuestionnaire(
   if (state.inputMode === "typing") {
     hint = "Enter submit | Esc cancel | Up/Down exit";
   } else if (state.inputMode === "notes") {
-    hint = "Enter save | Esc discard";
+    hint = "Enter save | Up/Down save & exit | Esc discard";
   } else if (state.activeTab === reviewTabIndex) {
     hint = "Left/Right tabs | Up/Down select | Enter submit | Esc cancel";
   } else if (q?.multiSelect) {

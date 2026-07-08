@@ -1,8 +1,8 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Editor, type EditorTheme, Key, matchesKey } from "@earendil-works/pi-tui";
+import { Editor, type EditorTheme } from "@earendil-works/pi-tui";
 import type { NormalizedQuestion, QuestionnaireResult } from "../core/types.ts";
 import { initState, reduce, buildResult } from "./state.ts";
-import { mapInput } from "./input.ts";
+import { interpret } from "./input.ts";
 import { renderQuestionnaire } from "./render.ts";
 
 export async function runQuestionnaireUI(
@@ -58,65 +58,37 @@ export async function runQuestionnaireUI(
     };
 
     function handleInput(data: string) {
-      // Notes mode: intercept Up/Down to save-and-exit before mapInput
-      // (mapInput is pure and cannot access the editor buffer)
-      if (state.inputMode === "notes" && state.editingQuestionId) {
-        if (matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
-          const notesValue = notesEditor.getText();
-          state = reduce(
-            state,
-            {
-              type: "submitNotes",
-              questionId: state.editingQuestionId,
-              value: notesValue.trim(),
-            },
-            questions,
-          );
-          state = reduce(
-            state,
-            {
-              type: "moveCursor",
-              direction: matchesKey(data, Key.up) ? "up" : "down",
-            },
-            questions,
-          );
-          notesEditor.setText("");
-          tui.requestRender();
-          return;
+      const effects = interpret(data, {
+        state,
+        questions,
+        notesEditorText: notesEditor.getText(),
+      });
+
+      for (const effect of effects) {
+        switch (effect.type) {
+          case "dispatch":
+            state = reduce(state, effect.action, questions);
+            break;
+          case "finalize":
+            done(buildResult(state, questions, effect.cancelled));
+            return;
+          case "forward-to-editor":
+            editor.handleInput(data);
+            break;
+          case "forward-to-notes-editor":
+            notesEditor.handleInput(data);
+            break;
+          case "set-editor-text":
+            editor.setText(effect.text);
+            break;
+          case "set-notes-editor-text":
+            notesEditor.setText(effect.text);
+            break;
         }
       }
 
-      const result = mapInput(data, state, questions);
-      switch (result.type) {
-        case "action":
-          state = reduce(state, result.action, questions);
-          // Load existing custom text into editor when entering typing mode
-          if (state.inputMode === "typing" && state.editingQuestionId) {
-            editor.setText(
-              state.customText.get(state.editingQuestionId) ?? "",
-            );
-          }
-          // Load existing note into notes editor when entering notes mode
-          if (state.inputMode === "notes" && state.editingQuestionId) {
-            notesEditor.setText(
-              state.notes.get(state.editingQuestionId) ?? "",
-            );
-          }
-          tui.requestRender();
-          break;
-        case "finalize":
-          done(buildResult(state, questions, result.cancelled));
-          break;
-        case "forward-to-editor":
-          editor.handleInput(data);
-          tui.requestRender();
-          break;
-        case "forward-to-notes-editor":
-          notesEditor.handleInput(data);
-          tui.requestRender();
-          break;
-        case "none":
-          break;
+      if (effects.length > 0) {
+        tui.requestRender();
       }
     }
 

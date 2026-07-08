@@ -1,6 +1,6 @@
-# Phase 5: Deepen the Input Interpreter
+# Phase 5: Deepen the Input Interpreter ✅
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status:** Implemented in commit 0f70b4c on branch `20260708-architecture-deepening-phase-5`.
 
 **Goal:** All "what does this keypress do?" logic concentrates in `input.ts`. The UI adapter (`questionnaire-ui.ts`) becomes a dumb effect applier.
 
