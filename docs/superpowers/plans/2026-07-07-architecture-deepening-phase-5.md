@@ -1,6 +1,6 @@
-# Phase 5: Deepen the Input Interpreter
+# Phase 5: Deepen the Input Interpreter ✅
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status:** Implemented in commit 0f70b4c on branch `20260708-architecture-deepening-phase-5`.
 
 **Goal:** All "what does this keypress do?" logic concentrates in `input.ts`. The UI adapter (`questionnaire-ui.ts`) becomes a dumb effect applier.
 
@@ -13,6 +13,7 @@
 ### Task 1: Define the new types in input.ts
 
 **Files:**
+
 - Modify: `src/tui/input.ts:1-20`
 
 - [ ] **Step 1: Replace the InputResult type and add new types**
@@ -88,6 +89,7 @@ Expected: errors — `mapInput` still references the old types, and callers impo
 ### Task 2: Rewrite the interpret function
 
 **Files:**
+
 - Modify: `src/tui/input.ts:22-152`
 
 - [ ] **Step 1: Replace mapInput with interpret**
@@ -103,7 +105,11 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
 
   // Typing mode
   if (state.inputMode === "typing") {
-    if (matchesKey(data, Key.escape) || matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
+    if (
+      matchesKey(data, Key.escape) ||
+      matchesKey(data, Key.up) ||
+      matchesKey(data, Key.down)
+    ) {
       return [dispatch({ type: "cancelTyping" }), { type: "clear-editor" }];
     }
     return [{ type: "forward-to-editor" }];
@@ -112,7 +118,10 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
   // Notes mode — Up/Down save-and-exit (previously in questionnaire-ui.ts)
   if (state.inputMode === "notes" && state.editingQuestionId) {
     if (matchesKey(data, Key.escape)) {
-      return [dispatch({ type: "cancelNotes" }), { type: "clear-notes-editor" }];
+      return [
+        dispatch({ type: "cancelNotes" }),
+        { type: "clear-notes-editor" },
+      ];
     }
     if (matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
       return [
@@ -149,10 +158,17 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
 
   // Left/Right navigate tabs
   if (matchesKey(data, Key.right)) {
-    return [dispatch({ type: "switchTab", tab: (state.activeTab + 1) % totalTabs })];
+    return [
+      dispatch({ type: "switchTab", tab: (state.activeTab + 1) % totalTabs }),
+    ];
   }
   if (matchesKey(data, Key.left)) {
-    return [dispatch({ type: "switchTab", tab: (state.activeTab - 1 + totalTabs) % totalTabs })];
+    return [
+      dispatch({
+        type: "switchTab",
+        tab: (state.activeTab - 1 + totalTabs) % totalTabs,
+      }),
+    ];
   }
 
   // Review tab
@@ -188,12 +204,14 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
       const target = cursorTarget(q, state.optionCursor);
       if (target.kind === "option") {
         const opt = q.options[target.index];
-        return [dispatch({
-          type: "selectOption",
-          questionId: q.id,
-          value: opt.value,
-          label: opt.label,
-        })];
+        return [
+          dispatch({
+            type: "selectOption",
+            questionId: q.id,
+            value: opt.value,
+            label: opt.label,
+          }),
+        ];
       }
       if (target.kind === "other") {
         return [
@@ -219,11 +237,13 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
     const target = cursorTarget(q, state.optionCursor);
     if (target.kind === "option") {
       const opt = q.options[target.index];
-      return [dispatch({
-        type: "toggleCheckbox",
-        questionId: q.id,
-        value: opt.value,
-      })];
+      return [
+        dispatch({
+          type: "toggleCheckbox",
+          questionId: q.id,
+          value: opt.value,
+        }),
+      ];
     }
     if (target.kind === "chat") {
       return [dispatch({ type: "selectChat", questionId: q.id })];
@@ -248,6 +268,7 @@ Expected: errors in `questionnaire-ui.ts` and `tests/tui/input.test.ts` — they
 ### Task 3: Rewrite the input tests
 
 **Files:**
+
 - Modify: `tests/tui/input.test.ts`
 
 - [ ] **Step 1: Replace the entire test file**
@@ -258,7 +279,11 @@ Replace the entire content of `tests/tui/input.test.ts` with:
 import { describe, expect, it } from "vitest";
 import type { NormalizedQuestion } from "../../src/core/types.ts";
 import { initState } from "../../src/tui/state.ts";
-import { interpret, type Effect, type InputContext } from "../../src/tui/input.ts";
+import {
+  interpret,
+  type Effect,
+  type InputContext,
+} from "../../src/tui/input.ts";
 
 const questions: NormalizedQuestion[] = [
   {
@@ -350,7 +375,9 @@ function ctx(
 
 function dispatched(effects: Effect[]) {
   return effects
-    .filter((e): e is Extract<Effect, { type: "dispatch" }> => e.type === "dispatch")
+    .filter(
+      (e): e is Extract<Effect, { type: "dispatch" }> => e.type === "dispatch",
+    )
     .map((e) => e.action);
 }
 
@@ -362,7 +389,9 @@ describe("interpret", () => {
 
   it("Up on single-choice returns moveCursor up", () => {
     const effects = interpret("\x1b[A", ctx(questions, { optionCursor: 1 }));
-    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "up" }]);
+    expect(dispatched(effects)).toEqual([
+      { type: "moveCursor", direction: "up" },
+    ]);
   });
 
   it("Space on single-choice returns selectOption", () => {
@@ -381,12 +410,21 @@ describe("interpret", () => {
 
   it("Enter on review with all answered returns finalize submitted", () => {
     const state = { ...initState(questions), activeTab: questions.length };
-    state.answers.set("scope", { kind: "option" as const, value: "small", label: "Small" });
+    state.answers.set("scope", {
+      kind: "option" as const,
+      value: "small",
+      label: "Small",
+    });
     state.answers.set("features", {
       kind: "options" as const,
       selected: [{ value: "auth", label: "Auth" }],
     });
-    const effects = interpret("\r", { state, questions, editorText: "", notesEditorText: "" });
+    const effects = interpret("\r", {
+      state,
+      questions,
+      editorText: "",
+      notesEditorText: "",
+    });
     expect(effects).toEqual([{ type: "finalize", cancelled: false }]);
   });
 
@@ -400,7 +438,9 @@ describe("interpret", () => {
 
   it("Down on single-choice returns moveCursor down", () => {
     const effects = interpret("\x1b[B", ctx(questions));
-    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "down" }]);
+    expect(dispatched(effects)).toEqual([
+      { type: "moveCursor", direction: "down" },
+    ]);
   });
 
   it("Enter on single-choice returns selectOption with correct values", () => {
@@ -420,7 +460,9 @@ describe("interpret", () => {
       "\x1b[A",
       ctx(questions, { activeTab: questions.length, reviewCursor: 1 }),
     );
-    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "up" }]);
+    expect(dispatched(effects)).toEqual([
+      { type: "moveCursor", direction: "up" },
+    ]);
   });
 
   it("Down on review returns moveCursor down", () => {
@@ -428,7 +470,9 @@ describe("interpret", () => {
       "\x1b[B",
       ctx(questions, { activeTab: questions.length }),
     );
-    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "down" }]);
+    expect(dispatched(effects)).toEqual([
+      { type: "moveCursor", direction: "down" },
+    ]);
   });
 
   it("Enter on review without all answered navigates to question at cursor", () => {
@@ -444,7 +488,9 @@ describe("interpret", () => {
       "\x1b[A",
       ctx(questions, { activeTab: 1, optionCursor: 1 }),
     );
-    expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "up" }]);
+    expect(dispatched(effects)).toEqual([
+      { type: "moveCursor", direction: "up" },
+    ]);
   });
 
   it("Enter on multi-choice option returns toggleCheckbox", () => {
@@ -452,11 +498,13 @@ describe("interpret", () => {
       "\r",
       ctx(questions, { activeTab: 1, optionCursor: 0 }),
     );
-    expect(dispatched(effects)).toEqual([{
-      type: "toggleCheckbox",
-      questionId: "features",
-      value: "auth",
-    }]);
+    expect(dispatched(effects)).toEqual([
+      {
+        type: "toggleCheckbox",
+        questionId: "features",
+        value: "auth",
+      },
+    ]);
   });
 
   it("Right arrow returns switchTab to next", () => {
@@ -474,7 +522,9 @@ describe("interpret", () => {
       "\x1b[C",
       ctx(questions, { activeTab: questions.length - 1 }),
     );
-    expect(dispatched(effects)).toEqual([{ type: "switchTab", tab: questions.length }]);
+    expect(dispatched(effects)).toEqual([
+      { type: "switchTab", tab: questions.length },
+    ]);
   });
 
   it("Left arrow on review returns switchTab", () => {
@@ -482,10 +532,12 @@ describe("interpret", () => {
       "\x1b[D",
       ctx(questions, { activeTab: questions.length }),
     );
-    expect(dispatched(effects)).toEqual([{
-      type: "switchTab",
-      tab: questions.length - 1,
-    }]);
+    expect(dispatched(effects)).toEqual([
+      {
+        type: "switchTab",
+        tab: questions.length - 1,
+      },
+    ]);
   });
 
   it("unrecognized key on single-choice returns empty effects", () => {
@@ -549,7 +601,10 @@ describe("interpret", () => {
       ctx(questionsWithOther, { optionCursor: 2 }),
     );
     expect(effects).toEqual([
-      { type: "dispatch", action: { type: "enterTyping", questionId: "scope" } },
+      {
+        type: "dispatch",
+        action: { type: "enterTyping", questionId: "scope" },
+      },
       { type: "set-editor-text", text: "" },
     ]);
   });
@@ -564,17 +619,19 @@ describe("interpret", () => {
       notesEditorText: "",
     });
     expect(effects).toEqual([
-      { type: "dispatch", action: { type: "enterTyping", questionId: "scope" } },
+      {
+        type: "dispatch",
+        action: { type: "enterTyping", questionId: "scope" },
+      },
       { type: "set-editor-text", text: "existing text" },
     ]);
   });
 
   it("Space on chat sentinel (single-choice) returns selectChat", () => {
-    const effects = interpret(
-      " ",
-      ctx(questionsWithChat, { optionCursor: 2 }),
-    );
-    expect(dispatched(effects)).toEqual([{ type: "selectChat", questionId: "scope" }]);
+    const effects = interpret(" ", ctx(questionsWithChat, { optionCursor: 2 }));
+    expect(dispatched(effects)).toEqual([
+      { type: "selectChat", questionId: "scope" },
+    ]);
   });
 
   it("Space on chat sentinel (multi-choice) returns selectChat", () => {
@@ -582,7 +639,9 @@ describe("interpret", () => {
       " ",
       ctx(questionsMultiWithChat, { optionCursor: 2 }),
     );
-    expect(dispatched(effects)).toEqual([{ type: "selectChat", questionId: "features" }]);
+    expect(dispatched(effects)).toEqual([
+      { type: "selectChat", questionId: "features" },
+    ]);
   });
 
   it("Space on Next row (multi-choice) returns confirmMulti", () => {
@@ -590,10 +649,12 @@ describe("interpret", () => {
       " ",
       ctx(questions, { activeTab: 1, optionCursor: 2 }),
     );
-    expect(dispatched(effects)).toEqual([{
-      type: "confirmMulti",
-      questionId: "features",
-    }]);
+    expect(dispatched(effects)).toEqual([
+      {
+        type: "confirmMulti",
+        questionId: "features",
+      },
+    ]);
   });
 
   it("Esc in notes mode returns cancelNotes + clear-notes-editor", () => {
@@ -626,10 +687,18 @@ describe("interpret", () => {
   it("Up in notes mode saves notes and moves cursor up", () => {
     const effects = interpret(
       "\x1b[A",
-      ctx(questions, { inputMode: "notes", editingQuestionId: "scope" }, "", "my note"),
+      ctx(
+        questions,
+        { inputMode: "notes", editingQuestionId: "scope" },
+        "",
+        "my note",
+      ),
     );
     expect(effects).toEqual([
-      { type: "dispatch", action: { type: "submitNotes", questionId: "scope", value: "my note" } },
+      {
+        type: "dispatch",
+        action: { type: "submitNotes", questionId: "scope", value: "my note" },
+      },
       { type: "dispatch", action: { type: "moveCursor", direction: "up" } },
       { type: "clear-notes-editor" },
     ]);
@@ -638,10 +707,18 @@ describe("interpret", () => {
   it("Down in notes mode saves notes and moves cursor down", () => {
     const effects = interpret(
       "\x1b[B",
-      ctx(questions, { inputMode: "notes", editingQuestionId: "scope" }, "", "  note  "),
+      ctx(
+        questions,
+        { inputMode: "notes", editingQuestionId: "scope" },
+        "",
+        "  note  ",
+      ),
     );
     expect(effects).toEqual([
-      { type: "dispatch", action: { type: "submitNotes", questionId: "scope", value: "note" } },
+      {
+        type: "dispatch",
+        action: { type: "submitNotes", questionId: "scope", value: "note" },
+      },
       { type: "dispatch", action: { type: "moveCursor", direction: "down" } },
       { type: "clear-notes-editor" },
     ]);
@@ -649,7 +726,11 @@ describe("interpret", () => {
 
   it("Tab on answered question returns enterNotes + set-notes-editor-text", () => {
     const state = initState(questions);
-    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    state.answers.set("scope", {
+      kind: "option",
+      value: "small",
+      label: "Small",
+    });
     const effects = interpret("\t", {
       state,
       questions,
@@ -664,7 +745,11 @@ describe("interpret", () => {
 
   it("Tab on answered question with existing note loads it", () => {
     const state = initState(questions);
-    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
+    state.answers.set("scope", {
+      kind: "option",
+      value: "small",
+      label: "Small",
+    });
     state.notes.set("scope", "existing note");
     const effects = interpret("\t", {
       state,
@@ -704,6 +789,7 @@ Expected: all pass.
 ### Task 4: Update questionnaire-ui.ts to use the effect applier
 
 **Files:**
+
 - Modify: `src/tui/questionnaire-ui.ts`
 
 - [ ] **Step 1: Replace the entire content of questionnaire-ui.ts**

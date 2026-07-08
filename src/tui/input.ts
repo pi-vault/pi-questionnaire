@@ -8,145 +8,161 @@ import {
   cursorTarget,
 } from "./state.ts";
 
-export type InputResult =
-  | { type: "action"; action: Action }
+export interface InputContext {
+  state: QuestionnaireState;
+  questions: NormalizedQuestion[];
+  notesEditorText: string;
+}
+
+export type Effect =
+  | { type: "dispatch"; action: Action }
   | { type: "finalize"; cancelled: boolean }
   | { type: "forward-to-editor" }
   | { type: "forward-to-notes-editor" }
-  | { type: "none" };
+  | { type: "set-editor-text"; text: string }
+  | { type: "set-notes-editor-text"; text: string };
 
-function action(a: Action): InputResult {
-  return { type: "action", action: a };
+function dispatch(a: Action): Effect {
+  return { type: "dispatch", action: a };
 }
 
-export function mapInput(
-  data: string,
-  state: QuestionnaireState,
-  questions: NormalizedQuestion[],
-): InputResult {
+export function interpret(data: string, ctx: InputContext): Effect[] {
+  const { state, questions } = ctx;
   const reviewTabIndex = questions.length;
   const totalTabs = questions.length + 1;
   const q = currentQuestion(state, questions);
 
-  // Typing mode — forward most keys to the inline editor
+  // Typing mode
   if (state.inputMode === "typing") {
     if (matchesKey(data, Key.escape) || matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
-      return action({ type: "cancelTyping" });
+      return [dispatch({ type: "cancelTyping" }), { type: "set-editor-text", text: "" }];
     }
-    // Enter, Left, Right, and all other keys → forward to editor
-    return { type: "forward-to-editor" };
+    return [{ type: "forward-to-editor" }];
   }
 
-  // Notes mode — forward most keys to the notes editor
-  // Up/Down save-and-exit is handled by the UI adapter (needs editor buffer access)
-  if (state.inputMode === "notes") {
+  // Notes mode — Up/Down save-and-exit (previously in questionnaire-ui.ts)
+  if (state.inputMode === "notes" && state.editingQuestionId) {
     if (matchesKey(data, Key.escape)) {
-      return action({ type: "cancelNotes" });
+      return [dispatch({ type: "cancelNotes" }), { type: "set-notes-editor-text", text: "" }];
     }
-    return { type: "forward-to-notes-editor" };
+    if (matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
+      return [
+        dispatch({
+          type: "submitNotes",
+          questionId: state.editingQuestionId,
+          value: ctx.notesEditorText.trim(),
+        }),
+        dispatch({
+          type: "moveCursor",
+          direction: matchesKey(data, Key.up) ? "up" : "down",
+        }),
+        { type: "set-notes-editor-text", text: "" },
+      ];
+    }
+    return [{ type: "forward-to-notes-editor" }];
   }
 
   // Global Esc
   if (matchesKey(data, Key.escape)) {
-    return { type: "finalize", cancelled: true };
+    return [{ type: "finalize", cancelled: true }];
   }
 
   // Tab — open notes editor (only if question has a selection)
   if (matchesKey(data, Key.tab)) {
     if (q && state.answers.has(q.id)) {
-      return action({ type: "enterNotes", questionId: q.id });
+      return [
+        dispatch({ type: "enterNotes", questionId: q.id }),
+        { type: "set-notes-editor-text", text: state.notes.get(q.id) ?? "" },
+      ];
     }
-    return { type: "none" };
+    return [];
   }
 
   // Left/Right navigate tabs
   if (matchesKey(data, Key.right)) {
-    return action({
-      type: "switchTab",
-      tab: (state.activeTab + 1) % totalTabs,
-    });
+    return [dispatch({ type: "switchTab", tab: (state.activeTab + 1) % totalTabs })];
   }
   if (matchesKey(data, Key.left)) {
-    return action({
-      type: "switchTab",
-      tab: (state.activeTab - 1 + totalTabs) % totalTabs,
-    });
+    return [dispatch({ type: "switchTab", tab: (state.activeTab - 1 + totalTabs) % totalTabs })];
   }
 
   // Review tab
   if (state.activeTab === reviewTabIndex) {
     if (matchesKey(data, Key.up)) {
-      return action({ type: "moveCursor", direction: "up" });
+      return [dispatch({ type: "moveCursor", direction: "up" })];
     }
     if (matchesKey(data, Key.down)) {
-      return action({ type: "moveCursor", direction: "down" });
+      return [dispatch({ type: "moveCursor", direction: "down" })];
     }
     if (matchesKey(data, Key.enter) && allAnswered(state, questions)) {
-      return { type: "finalize", cancelled: false };
+      return [{ type: "finalize", cancelled: false }];
     }
     if (matchesKey(data, Key.space) || matchesKey(data, Key.enter)) {
       if (state.reviewCursor < questions.length) {
-        return action({ type: "switchTab", tab: state.reviewCursor });
+        return [dispatch({ type: "switchTab", tab: state.reviewCursor })];
       }
     }
-    return { type: "none" };
+    return [];
   }
 
-  if (!q) return { type: "none" };
+  if (!q) return [];
 
   // Single-select
   if (!q.multiSelect) {
     if (matchesKey(data, Key.up)) {
-      return action({ type: "moveCursor", direction: "up" });
+      return [dispatch({ type: "moveCursor", direction: "up" })];
     }
     if (matchesKey(data, Key.down)) {
-      return action({ type: "moveCursor", direction: "down" });
+      return [dispatch({ type: "moveCursor", direction: "down" })];
     }
     if (matchesKey(data, Key.enter) || matchesKey(data, Key.space)) {
       const target = cursorTarget(q, state.optionCursor);
       if (target.kind === "option") {
         const opt = q.options[target.index];
-        return action({
+        return [dispatch({
           type: "selectOption",
           questionId: q.id,
           value: opt.value,
           label: opt.label,
-        });
+        })];
       }
       if (target.kind === "other") {
-        return action({ type: "enterTyping", questionId: q.id });
+        return [
+          dispatch({ type: "enterTyping", questionId: q.id }),
+          { type: "set-editor-text", text: state.customText.get(q.id) ?? "" },
+        ];
       }
       if (target.kind === "chat") {
-        return action({ type: "selectChat", questionId: q.id });
+        return [dispatch({ type: "selectChat", questionId: q.id })];
       }
     }
-    return { type: "none" };
+    return [];
   }
 
   // Multi-choice
   if (matchesKey(data, Key.up)) {
-    return action({ type: "moveCursor", direction: "up" });
+    return [dispatch({ type: "moveCursor", direction: "up" })];
   }
   if (matchesKey(data, Key.down)) {
-    return action({ type: "moveCursor", direction: "down" });
+    return [dispatch({ type: "moveCursor", direction: "down" })];
   }
   if (matchesKey(data, Key.space) || matchesKey(data, Key.enter)) {
     const target = cursorTarget(q, state.optionCursor);
     if (target.kind === "option") {
       const opt = q.options[target.index];
-      return action({
+      return [dispatch({
         type: "toggleCheckbox",
         questionId: q.id,
         value: opt.value,
-      });
+      })];
     }
     if (target.kind === "chat") {
-      return action({ type: "selectChat", questionId: q.id });
+      return [dispatch({ type: "selectChat", questionId: q.id })];
     }
     if (target.kind === "next") {
-      return action({ type: "confirmMulti", questionId: q.id });
+      return [dispatch({ type: "confirmMulti", questionId: q.id })];
     }
   }
 
-  return { type: "none" };
+  return [];
 }
