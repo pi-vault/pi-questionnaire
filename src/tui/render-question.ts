@@ -8,16 +8,22 @@ export interface RenderTheme {
   bold(text: string): string;
 }
 
-export function renderSingleChoiceQuestion(
-  question: NormalizedQuestion,
-  cursor: number,
-  selectedValue: string | null,
-  customText: string | null,
-  inputMode: "navigate" | "typing" | "notes",
-  editorLines: string[],
+export interface RenderQuestionInput {
+  question: NormalizedQuestion;
+  cursor: number;
+  selectedValue: string | null;
+  customText: string | null;
+  checked: Set<string>;
+  inputMode: "navigate" | "typing" | "notes";
+  editorLines: string[];
+}
+
+export function renderQuestion(
+  input: RenderQuestionInput,
   theme: RenderTheme,
   width: number,
 ): string[] {
+  const { question, cursor, inputMode, editorLines } = input;
   const lines: string[] = [];
   const slots = rowLayout(question);
 
@@ -31,32 +37,50 @@ export function renderSingleChoiceQuestion(
     switch (slot.kind) {
       case "option": {
         const opt = question.options[slot.index];
-        const isSelected = selectedValue === opt.value;
         const recSuffix =
           question.recommendation === opt.value ? " [recommended]" : "";
-        const label = `${slot.index + 1}. ${opt.label}${recSuffix}`;
 
-        let prefix: string;
-        let color: string;
-        if (isCursor) {
-          prefix = theme.fg("accent", "\u25B8 ");
-          color = "accent";
-        } else if (isSelected) {
-          prefix = theme.fg("success", "\u2022 ");
-          color = "success";
+        if (question.multiSelect) {
+          const isChecked = input.checked.has(opt.value);
+          const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+          const marker = isChecked ? "[\u2022]" : "[ ]";
+          const label = `${marker} ${slot.index + 1}. ${opt.label}${recSuffix}`;
+          const color = isCursor ? "accent" : isChecked ? "success" : "text";
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+          if (opt.description) {
+            pushWrappedWithPrefix(
+              lines,
+              "       ",
+              theme.fg("muted", opt.description),
+              width,
+            );
+          }
         } else {
-          prefix = "  ";
-          color = "text";
-        }
+          const isSelected = input.selectedValue === opt.value;
+          const label = `${slot.index + 1}. ${opt.label}${recSuffix}`;
 
-        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-        if (opt.description) {
-          pushWrappedWithPrefix(
-            lines,
-            "     ",
-            theme.fg("muted", opt.description),
-            width,
-          );
+          let prefix: string;
+          let color: string;
+          if (isCursor) {
+            prefix = theme.fg("accent", "\u25B8 ");
+            color = "accent";
+          } else if (isSelected) {
+            prefix = theme.fg("success", "\u2022 ");
+            color = "success";
+          } else {
+            prefix = "  ";
+            color = "text";
+          }
+
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+          if (opt.description) {
+            pushWrappedWithPrefix(
+              lines,
+              "     ",
+              theme.fg("muted", opt.description),
+              width,
+            );
+          }
         }
         break;
       }
@@ -75,8 +99,8 @@ export function renderSingleChoiceQuestion(
           for (const line of editorLines) {
             lines.push(`    ${line}`);
           }
-        } else if (customText) {
-          const label = `${displayNumber}. "${customText}"`;
+        } else if (input.customText) {
+          const label = `${displayNumber}. "${input.customText}"`;
           const color = isCursor ? "accent" : "text";
           pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
         } else {
@@ -88,64 +112,15 @@ export function renderSingleChoiceQuestion(
       }
       case "chat": {
         const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-        const displayNumber = i + 1;
-        const label = `${displayNumber}. Chat about this`;
-        const color = isCursor ? "accent" : "muted";
-        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-        break;
-      }
-    }
-  }
-
-  return lines;
-}
-
-export function renderMultiChoiceQuestion(
-  question: NormalizedQuestion,
-  cursor: number,
-  checked: Set<string>,
-  theme: RenderTheme,
-  width: number,
-): string[] {
-  const lines: string[] = [];
-  const slots = rowLayout(question);
-
-  pushWrapped(lines, theme.fg("text", question.prompt), width);
-  lines.push("");
-
-  for (let i = 0; i < slots.length; i++) {
-    const slot = slots[i];
-    const isCursor = i === cursor;
-    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-
-    switch (slot.kind) {
-      case "option": {
-        const opt = question.options[slot.index];
-        const isChecked = checked.has(opt.value);
-        const marker = isChecked ? "[\u2022]" : "[ ]";
-        const recSuffix =
-          question.recommendation === opt.value ? " [recommended]" : "";
-        const label = `${marker} ${slot.index + 1}. ${opt.label}${recSuffix}`;
-        const color = isCursor ? "accent" : isChecked ? "success" : "text";
-
-        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-        if (opt.description) {
-          pushWrappedWithPrefix(
-            lines,
-            "       ",
-            theme.fg("muted", opt.description),
-            width,
-          );
-        }
-        break;
-      }
-      case "chat": {
-        const label = "[ ] Chat about this";
+        const label = question.multiSelect
+          ? "[ ] Chat about this"
+          : `${i + 1}. Chat about this`;
         const color = isCursor ? "accent" : "muted";
         pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
         break;
       }
       case "next": {
+        const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
         const label = "\u2500\u2500\u2500 Next";
         const color = isCursor ? "accent" : "dim";
         pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);

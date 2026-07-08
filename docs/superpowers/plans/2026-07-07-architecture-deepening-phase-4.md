@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 6, Vitest, Biome
 
-**Note:** This phase works whether or not Phase 3 (cursor consolidation) has landed. If Phase 3 landed, the internals already iterate `RowSlot[]`. If not, the function uses inline index arithmetic — just in one place.
+**Prerequisite state:** Phases 1-3 have all landed. `RenderTheme` is defined inline in `render-question.ts`. Both render functions already iterate `RowSlot[]` via `rowLayout(question)` from `state.ts`. The merged function preserves this pattern.
 
 ---
 
@@ -280,7 +280,13 @@ Replace the entire content of `src/tui/render-question.ts` with:
 ```ts
 import type { NormalizedQuestion } from "../core/types.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
-import type { RenderTheme } from "./theme.ts";
+import { rowLayout } from "./state.ts";
+
+export interface RenderTheme {
+  fg(color: string, text: string): string;
+  bg(color: string, text: string): string;
+  bold(text: string): string;
+}
 
 export interface RenderQuestionInput {
   question: NormalizedQuestion;
@@ -299,127 +305,113 @@ export function renderQuestion(
 ): string[] {
   const { question, cursor, inputMode, editorLines } = input;
   const lines: string[] = [];
+  const slots = rowLayout(question);
 
   pushWrapped(lines, theme.fg("text", question.prompt), width);
   lines.push("");
 
-  for (let i = 0; i < question.options.length; i++) {
-    const opt = question.options[i];
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
     const isCursor = i === cursor;
-    const recSuffix =
-      question.recommendation === opt.value ? " [recommended]" : "";
 
-    if (question.multiSelect) {
-      const isChecked = input.checked.has(opt.value);
-      const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-      const marker = isChecked ? "[\u2022]" : "[ ]";
-      const label = `${marker} ${i + 1}. ${opt.label}${recSuffix}`;
-      const color = isCursor ? "accent" : isChecked ? "success" : "text";
-      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-      if (opt.description) {
-        pushWrappedWithPrefix(
-          lines,
-          "       ",
-          theme.fg("muted", opt.description),
-          width,
-        );
-      }
-    } else {
-      const isSelected = input.selectedValue === opt.value;
-      const label = `${i + 1}. ${opt.label}${recSuffix}`;
+    switch (slot.kind) {
+      case "option": {
+        const opt = question.options[slot.index];
+        const recSuffix =
+          question.recommendation === opt.value ? " [recommended]" : "";
 
-      let prefix: string;
-      let color: string;
-      if (isCursor) {
-        prefix = theme.fg("accent", "\u25B8 ");
-        color = "accent";
-      } else if (isSelected) {
-        prefix = theme.fg("success", "\u2022 ");
-        color = "success";
-      } else {
-        prefix = "  ";
-        color = "text";
-      }
+        if (question.multiSelect) {
+          const isChecked = input.checked.has(opt.value);
+          const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+          const marker = isChecked ? "[\u2022]" : "[ ]";
+          const label = `${marker} ${slot.index + 1}. ${opt.label}${recSuffix}`;
+          const color = isCursor ? "accent" : isChecked ? "success" : "text";
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+          if (opt.description) {
+            pushWrappedWithPrefix(
+              lines,
+              "       ",
+              theme.fg("muted", opt.description),
+              width,
+            );
+          }
+        } else {
+          const isSelected = input.selectedValue === opt.value;
+          const label = `${slot.index + 1}. ${opt.label}${recSuffix}`;
 
-      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-      if (opt.description) {
-        pushWrappedWithPrefix(
-          lines,
-          "     ",
-          theme.fg("muted", opt.description),
-          width,
-        );
-      }
-    }
-  }
+          let prefix: string;
+          let color: string;
+          if (isCursor) {
+            prefix = theme.fg("accent", "\u25B8 ");
+            color = "accent";
+          } else if (isSelected) {
+            prefix = theme.fg("success", "\u2022 ");
+            color = "success";
+          } else {
+            prefix = "  ";
+            color = "text";
+          }
 
-  // Sentinels — only for single-select
-  if (!question.multiSelect) {
-    if (question.allowOther) {
-      const sentinelIndex = question.options.length;
-      const isCursor = sentinelIndex === cursor;
-      const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-
-      if (inputMode === "typing") {
-        const label = `${sentinelIndex + 1}.`;
-        pushWrappedWithPrefix(
-          lines,
-          prefix,
-          theme.fg("accent", label),
-          width,
-        );
-        for (const line of editorLines) {
-          lines.push(`    ${line}`);
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+          if (opt.description) {
+            pushWrappedWithPrefix(
+              lines,
+              "     ",
+              theme.fg("muted", opt.description),
+              width,
+            );
+          }
         }
-      } else if (input.customText) {
-        const label = `${sentinelIndex + 1}. "${input.customText}"`;
-        const color = isCursor ? "accent" : "text";
-        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-      } else {
-        const label = `${sentinelIndex + 1}. Type something.`;
+        break;
+      }
+      case "other": {
+        const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+        const displayNumber = i + 1;
+
+        if (inputMode === "typing") {
+          const label = `${displayNumber}.`;
+          pushWrappedWithPrefix(
+            lines,
+            prefix,
+            theme.fg("accent", label),
+            width,
+          );
+          for (const line of editorLines) {
+            lines.push(`    ${line}`);
+          }
+        } else if (input.customText) {
+          const label = `${displayNumber}. "${input.customText}"`;
+          const color = isCursor ? "accent" : "text";
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        } else {
+          const label = `${displayNumber}. Type something.`;
+          const color = isCursor ? "accent" : "muted";
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        }
+        break;
+      }
+      case "chat": {
+        const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+        const label = question.multiSelect
+          ? "[ ] Chat about this"
+          : `${i + 1}. Chat about this`;
         const color = isCursor ? "accent" : "muted";
         pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        break;
       }
-    }
-
-    if (question.allowChat) {
-      const chatIndex =
-        question.options.length + (question.allowOther ? 1 : 0);
-      const isCursor = chatIndex === cursor;
-      const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-      const label = `${chatIndex + 1}. Chat about this`;
-      const color = isCursor ? "accent" : "muted";
-      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-    }
-  }
-
-  // Sentinels — only for multi-select
-  if (question.multiSelect) {
-    if (question.allowChat) {
-      const chatIndex = question.options.length;
-      const isCursor = chatIndex === cursor;
-      const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-      const label = "[ ] Chat about this";
-      const color = isCursor ? "accent" : "muted";
-      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-    }
-
-    {
-      const nextIndex =
-        question.options.length + (question.allowChat ? 1 : 0);
-      const isCursor = nextIndex === cursor;
-      const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-      const label = "\u2500\u2500\u2500 Next";
-      const color = isCursor ? "accent" : "dim";
-      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+      case "next": {
+        const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+        const label = "\u2500\u2500\u2500 Next";
+        const color = isCursor ? "accent" : "dim";
+        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        break;
+      }
     }
   }
 
   return lines;
 }
 ```
-
-**Note:** If Phase 1 (dissolve theme.ts) has landed, the `import type { RenderTheme } from "./theme.ts"` line should instead be removed and `RenderTheme` will already be defined in this file. Adjust accordingly based on what's already merged.
 
 - [ ] **Step 4: Run render-question tests**
 
@@ -432,7 +424,7 @@ Expected: all pass.
 ### Task 2: Update render.ts to use the new interface
 
 **Files:**
-- Modify: `src/tui/render.ts:9-13,56-81`
+- Modify: `src/tui/render.ts`
 
 - [ ] **Step 1: Update imports in render.ts**
 
@@ -453,7 +445,7 @@ import { renderQuestion } from "./render-question.ts";
 
 - [ ] **Step 2: Replace the branching content block in render.ts**
 
-In `src/tui/render.ts`, replace the content rendering block (the `} else if (q) {` block, lines 56-82):
+In `src/tui/render.ts`, replace:
 
 ```ts
   } else if (q) {
@@ -523,6 +515,7 @@ git commit -m "refactor(tui): merge render-question into one function
 
 Collapse renderSingleChoiceQuestion and renderMultiChoiceQuestion
 into renderQuestion with a single RenderQuestionInput object.
+Preserves rowLayout iteration from Phase 3.
 Interface narrows from 2 functions x 13 params to 1 function x 3 params.
 
 Generated with [Devin](https://devin.ai)

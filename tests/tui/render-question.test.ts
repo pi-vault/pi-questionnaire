@@ -1,12 +1,32 @@
 import { describe, expect, it } from "vitest";
 import type { NormalizedQuestion } from "../../src/core/types.ts";
-import {
-  renderSingleChoiceQuestion,
-  renderMultiChoiceQuestion,
-} from "../../src/tui/render-question.ts";
+import { renderQuestion } from "../../src/tui/render-question.ts";
 import { noopTheme } from "../helpers/theme.ts";
 
-describe("renderSingleChoiceQuestion", () => {
+function input(
+  question: NormalizedQuestion,
+  overrides: Partial<{
+    cursor: number;
+    selectedValue: string | null;
+    customText: string | null;
+    checked: Set<string>;
+    inputMode: "navigate" | "typing" | "notes";
+    editorLines: string[];
+  }> = {},
+) {
+  return {
+    question,
+    cursor: 0,
+    selectedValue: null,
+    customText: null,
+    checked: new Set<string>(),
+    inputMode: "navigate" as const,
+    editorLines: [] as string[],
+    ...overrides,
+  };
+}
+
+describe("renderQuestion — single-select", () => {
   const question: NormalizedQuestion = {
     multiSelect: false,
     id: "scope",
@@ -22,16 +42,7 @@ describe("renderSingleChoiceQuestion", () => {
   };
 
   it("renders prompt and all options", () => {
-    const lines = renderSingleChoiceQuestion(
-      question,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(question), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("What scope?");
     expect(text).toContain("1. Small");
@@ -39,43 +50,20 @@ describe("renderSingleChoiceQuestion", () => {
   });
 
   it("shows cursor indicator on focused option", () => {
-    const lines = renderSingleChoiceQuestion(
-      question,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(question), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("\u25B8 ");
   });
 
   it("shows recommendation suffix", () => {
-    const lines = renderSingleChoiceQuestion(
-      question,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(question), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("[recommended]");
   });
 
   it("shows option description", () => {
-    const lines = renderSingleChoiceQuestion(
-      question,
-      1,
-      null,
-      null,
-      "navigate",
-      [],
+    const lines = renderQuestion(
+      input(question, { cursor: 1 }),
       noopTheme,
       80,
     );
@@ -84,79 +72,43 @@ describe("renderSingleChoiceQuestion", () => {
   });
 
   it("shows bullet on selected option when cursor is elsewhere", () => {
-    const lines = renderSingleChoiceQuestion(
-      question,
-      1,
-      "small",
-      null,
-      "navigate",
-      [],
+    const lines = renderQuestion(
+      input(question, { cursor: 1, selectedValue: "small" }),
       noopTheme,
       80,
     );
     const text = lines.join("\n");
-    // Selected option (index 0 = Small) gets bullet marker
     expect(text).toContain("\u2022 1. Small");
-    // Cursor option (index 1 = Large) gets cursor marker
     expect(text).toContain("\u25B8 2. Large");
   });
 
   it("shows cursor on selected option when cursor is on it", () => {
-    const lines = renderSingleChoiceQuestion(
-      question,
-      0,
-      "small",
-      null,
-      "navigate",
-      [],
+    const lines = renderQuestion(
+      input(question, { cursor: 0, selectedValue: "small" }),
       noopTheme,
       80,
     );
     const text = lines.join("\n");
-    // Cursor takes priority over bullet
     expect(text).toContain("\u25B8 1. Small");
   });
 
   it("renders 'Type something.' sentinel when allowOther is true", () => {
     const q = { ...question, allowOther: true };
-    const lines = renderSingleChoiceQuestion(
-      q,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(q), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("3. Type something.");
   });
 
   it("does not render sentinel when allowOther is false", () => {
-    const lines = renderSingleChoiceQuestion(
-      question,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(question), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).not.toContain("Type something.");
   });
 
   it("renders custom text when set", () => {
     const q = { ...question, allowOther: true };
-    const lines = renderSingleChoiceQuestion(
-      q,
-      0,
-      null,
-      "My custom answer",
-      "navigate",
-      [],
+    const lines = renderQuestion(
+      input(q, { customText: "My custom answer" }),
       noopTheme,
       80,
     );
@@ -166,13 +118,12 @@ describe("renderSingleChoiceQuestion", () => {
 
   it("renders editor content in typing mode", () => {
     const q = { ...question, allowOther: true };
-    const lines = renderSingleChoiceQuestion(
-      q,
-      q.options.length,
-      null,
-      null,
-      "typing",
-      ["hello"],
+    const lines = renderQuestion(
+      input(q, {
+        cursor: q.options.length,
+        inputMode: "typing",
+        editorLines: ["hello"],
+      }),
       noopTheme,
       80,
     );
@@ -183,26 +134,23 @@ describe("renderSingleChoiceQuestion", () => {
   it("renders multi-line editor lines separately (not joined)", () => {
     const q = { ...question, allowOther: true };
     const editorLines = ["---border---", "typed text", "---border---"];
-    const lines = renderSingleChoiceQuestion(
-      q,
-      q.options.length,
-      null,
-      null,
-      "typing",
-      editorLines,
+    const lines = renderQuestion(
+      input(q, {
+        cursor: q.options.length,
+        inputMode: "typing",
+        editorLines,
+      }),
       noopTheme,
       80,
     );
     const text = lines.join("\n");
-    // Each editor line should appear on its own output line
     expect(text).toContain("---border---\n");
     expect(text).toContain("typed text\n");
-    // The border and text should NOT be concatenated
     expect(text).not.toContain("---border---typed text");
   });
 });
 
-describe("renderMultiChoiceQuestion", () => {
+describe("renderQuestion — multi-select", () => {
   const question: NormalizedQuestion = {
     multiSelect: true,
     id: "features",
@@ -218,11 +166,8 @@ describe("renderMultiChoiceQuestion", () => {
   };
 
   it("renders checkboxes with bullet for checked items", () => {
-    const checked = new Set(["auth"]);
-    const lines = renderMultiChoiceQuestion(
-      question,
-      0,
-      checked,
+    const lines = renderQuestion(
+      input(question, { checked: new Set(["auth"]) }),
       noopTheme,
       80,
     );
@@ -232,51 +177,32 @@ describe("renderMultiChoiceQuestion", () => {
   });
 
   it("shows recommendation suffix on recommended options", () => {
-    const checked = new Set<string>();
-    const lines = renderMultiChoiceQuestion(
-      question,
-      0,
-      checked,
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(question), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("[recommended]");
   });
 
   it("renders '[ ] Chat about this' when allowChat is true", () => {
     const q = { ...question, allowChat: true };
-    const lines = renderMultiChoiceQuestion(q, 0, new Set(), noopTheme, 80);
+    const lines = renderQuestion(input(q), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("[ ] Chat about this");
   });
 
   it("does not render 'Chat about this' when allowChat is false", () => {
-    const lines = renderMultiChoiceQuestion(
-      question,
-      0,
-      new Set(),
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(question), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).not.toContain("Chat about this");
   });
 
-  it("always renders '─── Next' sentinel", () => {
-    const lines = renderMultiChoiceQuestion(
-      question,
-      0,
-      new Set(),
-      noopTheme,
-      80,
-    );
+  it("always renders '\u2500\u2500\u2500 Next' sentinel", () => {
+    const lines = renderQuestion(input(question), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("\u2500\u2500\u2500 Next");
   });
 });
 
-describe("renderSingleChoiceQuestion – chat sentinel", () => {
+describe("renderQuestion — chat sentinel", () => {
   const baseQuestion: NormalizedQuestion = {
     multiSelect: false,
     id: "scope",
@@ -293,49 +219,21 @@ describe("renderSingleChoiceQuestion – chat sentinel", () => {
 
   it("renders 'N. Chat about this' when allowChat is true", () => {
     const q = { ...baseQuestion, allowChat: true };
-    const lines = renderSingleChoiceQuestion(
-      q,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(q), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).toContain("3. Chat about this");
   });
 
   it("does NOT render 'Chat about this' when allowChat is false", () => {
-    const lines = renderSingleChoiceQuestion(
-      baseQuestion,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(baseQuestion), noopTheme, 80);
     const text = lines.join("\n");
     expect(text).not.toContain("Chat about this");
   });
 
   it("chat index is after 'Type something.' when allowOther is true", () => {
     const q = { ...baseQuestion, allowOther: true, allowChat: true };
-    const lines = renderSingleChoiceQuestion(
-      q,
-      0,
-      null,
-      null,
-      "navigate",
-      [],
-      noopTheme,
-      80,
-    );
+    const lines = renderQuestion(input(q), noopTheme, 80);
     const text = lines.join("\n");
-    // options.length=2, allowOther adds index 2 (Type something.), chat is index 3
     expect(text).toContain("3. Type something.");
     expect(text).toContain("4. Chat about this");
   });
