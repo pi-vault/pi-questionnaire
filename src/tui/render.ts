@@ -7,10 +7,7 @@ import {
   getSelectedValue,
 } from "./state.ts";
 import { renderTabBar } from "./render-tabs.ts";
-import {
-  renderSingleChoiceQuestion,
-  renderMultiChoiceQuestion,
-} from "./render-question.ts";
+import { renderQuestion } from "./render-question.ts";
 import { renderReviewScreen } from "./render-review.ts";
 import { pushWrapped } from "./helpers.ts";
 
@@ -54,31 +51,21 @@ export function renderQuestionnaire(
       ),
     );
   } else if (q) {
-    if (q.multiSelect) {
-      const checked = state.multiChecked.get(q.id) ?? new Set();
-      lines.push(
-        ...renderMultiChoiceQuestion(
-          q,
-          state.optionCursor,
-          checked,
-          theme,
-          renderWidth,
-        ),
-      );
-    } else {
-      lines.push(
-        ...renderSingleChoiceQuestion(
-          q,
-          state.optionCursor,
-          getSelectedValue(state, q.id),
-          state.customText.get(q.id) ?? null,
-          state.inputMode,
+    lines.push(
+      ...renderQuestion(
+        {
+          question: q,
+          cursor: state.optionCursor,
+          selectedValue: getSelectedValue(state, q.id),
+          customText: state.customText.get(q.id) ?? null,
+          checked: state.multiChecked.get(q.id) ?? new Set(),
+          inputMode: state.inputMode,
           editorLines,
-          theme,
-          renderWidth,
-        ),
-      );
-    }
+        },
+        theme,
+        renderWidth,
+      ),
+    );
   }
 
   // Notes editor (when in notes mode)
