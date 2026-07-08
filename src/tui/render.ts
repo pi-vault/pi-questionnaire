@@ -1,5 +1,5 @@
 import type { NormalizedQuestion } from "../core/types.ts";
-import type { RenderTheme } from "./theme.ts";
+import type { RenderTheme } from "./render-question.ts";
 import {
   type QuestionnaireState,
   answeredIds,

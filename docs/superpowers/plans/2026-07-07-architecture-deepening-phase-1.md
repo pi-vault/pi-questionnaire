@@ -13,6 +13,7 @@
 ### Task 1: Move RenderTheme type to render-question.ts
 
 **Files:**
+
 - Modify: `src/tui/render-question.ts:1-3`
 - Delete: `src/tui/theme.ts`
 
@@ -53,6 +54,7 @@ Expected: errors in `render-tabs.ts`, `render-review.ts`, `render.ts`, and `test
 ### Task 2: Update import paths
 
 **Files:**
+
 - Modify: `src/tui/render-tabs.ts:2`
 - Modify: `src/tui/render-review.ts:4`
 - Modify: `src/tui/render.ts:2`
