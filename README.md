@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/%40pi-vault%2Fpi-questionnaire)](https://www.npmjs.com/package/@pi-vault/pi-questionnaire)
 [![Quality](https://github.com/pi-vault/pi-questionnaire/actions/workflows/quality.yml/badge.svg?branch=master)](https://github.com/pi-vault/pi-questionnaire/actions/workflows/quality.yml)
-[![Node >= 22.19](https://img.shields.io/badge/node-%3E%3D22.19-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node >= 24.15.0](https://img.shields.io/badge/node-%3E%3D24.15.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 Stop guessing and ask better follow-up questions. `@pi-vault/pi-questionnaire` adds a `questionnaire` tool to Pi so an agent can collect several related answers in one focused interaction.
@@ -118,6 +118,19 @@ A few habits make the tool work better:
 - leave `allowOther` on when a custom answer might matter
 - leave `allowChat` on when the user may need to talk something through
 
+## Development And Verification
+
+```bash
+pnpm install
+pnpm check
+pnpm run pack:dry-run
+pnpm run release:check
+```
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
+
 ## License
 
-MIT
+MIT — see [`LICENSE`](LICENSE).
