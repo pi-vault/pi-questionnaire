@@ -2,7 +2,8 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import {
   QuestionnaireParamsSchema,
-  processQuestions,
+  validateQuestions,
+  normalizeQuestions,
   formatContentSummary,
   formatAnswerForRender,
 } from "./core/index.ts";
@@ -38,16 +39,17 @@ export default function createExtension(pi: ExtensionAPI): void {
     parameters: QuestionnaireParamsSchema,
 
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const result = processQuestions(params.questions);
-      if (!result.ok) {
-        return errorResult(result.error);
+      const validation = validateQuestions(params.questions);
+      if (!validation.valid) {
+        return errorResult(validation.error);
       }
 
       if (ctx.mode !== "tui") {
         return errorResult("Questionnaire requires interactive mode.");
       }
 
-      const uiResult = await runQuestionnaireUI(ctx, result.questions);
+      const questions = normalizeQuestions(params.questions);
+      const uiResult = await runQuestionnaireUI(ctx, questions);
 
       return {
         content: [{ type: "text", text: formatContentSummary(uiResult) }],

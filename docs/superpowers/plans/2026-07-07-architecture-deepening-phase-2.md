@@ -13,6 +13,7 @@
 ### Task 1: Update the barrel to export validate and normalize
 
 **Files:**
+
 - Modify: `src/core/index.ts`
 
 - [ ] **Step 1: Replace process.ts exports with validate + normalize exports**
@@ -42,6 +43,7 @@ Expected: error in `src/index.ts` — it imports `processQuestions` which no lon
 ### Task 2: Inline the composition in src/index.ts
 
 **Files:**
+
 - Modify: `src/index.ts:3-8,41-44`
 
 - [ ] **Step 1: Update imports in src/index.ts**
@@ -76,32 +78,32 @@ import type { QuestionInput, QuestionnaireResult } from "./core/index.ts";
 In `src/index.ts`, inside the `execute` method, replace:
 
 ```ts
-      const result = processQuestions(params.questions);
-      if (!result.ok) {
-        return errorResult(result.error);
-      }
+const result = processQuestions(params.questions);
+if (!result.ok) {
+  return errorResult(result.error);
+}
 
-      if (ctx.mode !== "tui") {
-        return errorResult("Questionnaire requires interactive mode.");
-      }
+if (ctx.mode !== "tui") {
+  return errorResult("Questionnaire requires interactive mode.");
+}
 
-      const uiResult = await runQuestionnaireUI(ctx, result.questions);
+const uiResult = await runQuestionnaireUI(ctx, result.questions);
 ```
 
 with:
 
 ```ts
-      const validation = validateQuestions(params.questions);
-      if (!validation.valid) {
-        return errorResult(validation.error);
-      }
+const validation = validateQuestions(params.questions);
+if (!validation.valid) {
+  return errorResult(validation.error);
+}
 
-      if (ctx.mode !== "tui") {
-        return errorResult("Questionnaire requires interactive mode.");
-      }
+if (ctx.mode !== "tui") {
+  return errorResult("Questionnaire requires interactive mode.");
+}
 
-      const questions = normalizeQuestions(params.questions);
-      const uiResult = await runQuestionnaireUI(ctx, questions);
+const questions = normalizeQuestions(params.questions);
+const uiResult = await runQuestionnaireUI(ctx, questions);
 ```
 
 - [ ] **Step 3: Run typecheck to verify**
@@ -115,6 +117,7 @@ Expected: passes. The `validation` result uses `{ valid: true } | { valid: false
 ### Task 3: Delete process.ts and its tests
 
 **Files:**
+
 - Delete: `src/core/process.ts`
 - Delete: `tests/core/process.test.ts`
 

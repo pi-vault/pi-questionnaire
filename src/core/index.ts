@@ -13,8 +13,8 @@ export type {
   QuestionSelection,
   SelectedOption,
 } from "./types.ts";
-export { processQuestions } from "./process.ts";
-export type { ProcessResult } from "./process.ts";
+export { validateQuestions } from "./validate.ts";
+export { normalizeQuestions } from "./normalize.ts";
 export {
   formatContentSummary,
   formatAnswerForRender,
