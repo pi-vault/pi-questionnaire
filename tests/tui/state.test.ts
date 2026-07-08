@@ -10,6 +10,7 @@ import {
   getSelectedValue,
   initState,
   reduce,
+  rowLayout,
   visibleRowCount,
 } from "../../src/tui/state.ts";
 
@@ -127,6 +128,63 @@ const questionsWithChat: NormalizedQuestion[] = [
     allowChat: true,
   },
 ];
+
+describe("rowLayout", () => {
+  it("returns option slots for plain single-select (no sentinels)", () => {
+    const slots = rowLayout(questions[0]); // allowOther: false, allowChat: false
+    expect(slots).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+    ]);
+  });
+
+  it("includes other slot for single-select with allowOther", () => {
+    const slots = rowLayout(singleWithOther);
+    expect(slots).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+      { kind: "other" },
+    ]);
+  });
+
+  it("includes chat slot for single-select with allowChat", () => {
+    const slots = rowLayout(singleWithChat);
+    expect(slots).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+      { kind: "chat" },
+    ]);
+  });
+
+  it("includes other then chat for single-select with both", () => {
+    const slots = rowLayout(singleWithOtherAndChat);
+    expect(slots).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+      { kind: "other" },
+      { kind: "chat" },
+    ]);
+  });
+
+  it("includes next slot for multi-select (no chat)", () => {
+    const slots = rowLayout(questions[1]); // allowChat: false
+    expect(slots).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+      { kind: "next" },
+    ]);
+  });
+
+  it("includes chat then next for multi-select with allowChat", () => {
+    const slots = rowLayout(multiWithChat);
+    expect(slots).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+      { kind: "chat" },
+      { kind: "next" },
+    ]);
+  });
+});
 
 describe("initState", () => {
   it("starts on tab 0 with cursors at 0", () => {

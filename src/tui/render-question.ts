@@ -1,5 +1,6 @@
 import type { NormalizedQuestion } from "../core/types.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
+import { rowLayout } from "./state.ts";
 
 export interface RenderTheme {
   fg(color: string, text: string): string;
@@ -18,73 +19,82 @@ export function renderSingleChoiceQuestion(
   width: number,
 ): string[] {
   const lines: string[] = [];
+  const slots = rowLayout(question);
 
   pushWrapped(lines, theme.fg("text", question.prompt), width);
   lines.push("");
 
-  for (let i = 0; i < question.options.length; i++) {
-    const opt = question.options[i];
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
     const isCursor = i === cursor;
-    const isSelected = selectedValue === opt.value;
-    const recSuffix =
-      question.recommendation === opt.value ? " [recommended]" : "";
-    const label = `${i + 1}. ${opt.label}${recSuffix}`;
 
-    let prefix: string;
-    let color: string;
-    if (isCursor) {
-      prefix = theme.fg("accent", "\u25B8 ");
-      color = "accent";
-    } else if (isSelected) {
-      prefix = theme.fg("success", "\u2022 ");
-      color = "success";
-    } else {
-      prefix = "  ";
-      color = "text";
-    }
+    switch (slot.kind) {
+      case "option": {
+        const opt = question.options[slot.index];
+        const isSelected = selectedValue === opt.value;
+        const recSuffix =
+          question.recommendation === opt.value ? " [recommended]" : "";
+        const label = `${slot.index + 1}. ${opt.label}${recSuffix}`;
 
-    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-    if (opt.description) {
-      pushWrappedWithPrefix(
-        lines,
-        "     ",
-        theme.fg("muted", opt.description),
-        width,
-      );
-    }
-  }
+        let prefix: string;
+        let color: string;
+        if (isCursor) {
+          prefix = theme.fg("accent", "\u25B8 ");
+          color = "accent";
+        } else if (isSelected) {
+          prefix = theme.fg("success", "\u2022 ");
+          color = "success";
+        } else {
+          prefix = "  ";
+          color = "text";
+        }
 
-  // "Type something." sentinel
-  if (question.allowOther) {
-    const sentinelIndex = question.options.length;
-    const isCursor = sentinelIndex === cursor;
-    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-
-    if (inputMode === "typing") {
-      const label = `${sentinelIndex + 1}.`;
-      pushWrappedWithPrefix(lines, prefix, theme.fg("accent", label), width);
-      for (const line of editorLines) {
-        lines.push(`    ${line}`);
+        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        if (opt.description) {
+          pushWrappedWithPrefix(
+            lines,
+            "     ",
+            theme.fg("muted", opt.description),
+            width,
+          );
+        }
+        break;
       }
-    } else if (customText) {
-      const label = `${sentinelIndex + 1}. "${customText}"`;
-      const color = isCursor ? "accent" : "text";
-      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-    } else {
-      const label = `${sentinelIndex + 1}. Type something.`;
-      const color = isCursor ? "accent" : "muted";
-      pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-    }
-  }
+      case "other": {
+        const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+        const displayNumber = i + 1;
 
-  // "Chat about this" sentinel
-  if (question.allowChat) {
-    const chatIndex = question.options.length + (question.allowOther ? 1 : 0);
-    const isCursor = chatIndex === cursor;
-    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-    const label = `${chatIndex + 1}. Chat about this`;
-    const color = isCursor ? "accent" : "muted";
-    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        if (inputMode === "typing") {
+          const label = `${displayNumber}.`;
+          pushWrappedWithPrefix(
+            lines,
+            prefix,
+            theme.fg("accent", label),
+            width,
+          );
+          for (const line of editorLines) {
+            lines.push(`    ${line}`);
+          }
+        } else if (customText) {
+          const label = `${displayNumber}. "${customText}"`;
+          const color = isCursor ? "accent" : "text";
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        } else {
+          const label = `${displayNumber}. Type something.`;
+          const color = isCursor ? "accent" : "muted";
+          pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        }
+        break;
+      }
+      case "chat": {
+        const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
+        const displayNumber = i + 1;
+        const label = `${displayNumber}. Chat about this`;
+        const color = isCursor ? "accent" : "muted";
+        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        break;
+      }
+    }
   }
 
   return lines;
@@ -98,53 +108,51 @@ export function renderMultiChoiceQuestion(
   width: number,
 ): string[] {
   const lines: string[] = [];
+  const slots = rowLayout(question);
 
   pushWrapped(lines, theme.fg("text", question.prompt), width);
   lines.push("");
 
-  for (let i = 0; i < question.options.length; i++) {
-    const opt = question.options[i];
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
     const isCursor = i === cursor;
-    const isChecked = checked.has(opt.value);
     const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-    const marker = isChecked ? "[\u2022]" : "[ ]";
-    const recSuffix =
-      question.recommendation === opt.value ? " [recommended]" : "";
-    const label = `${marker} ${i + 1}. ${opt.label}${recSuffix}`;
-    const color = isCursor ? "accent" : isChecked ? "success" : "text";
 
-    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-    if (opt.description) {
-      pushWrappedWithPrefix(
-        lines,
-        "       ",
-        theme.fg("muted", opt.description),
-        width,
-      );
+    switch (slot.kind) {
+      case "option": {
+        const opt = question.options[slot.index];
+        const isChecked = checked.has(opt.value);
+        const marker = isChecked ? "[\u2022]" : "[ ]";
+        const recSuffix =
+          question.recommendation === opt.value ? " [recommended]" : "";
+        const label = `${marker} ${slot.index + 1}. ${opt.label}${recSuffix}`;
+        const color = isCursor ? "accent" : isChecked ? "success" : "text";
+
+        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        if (opt.description) {
+          pushWrappedWithPrefix(
+            lines,
+            "       ",
+            theme.fg("muted", opt.description),
+            width,
+          );
+        }
+        break;
+      }
+      case "chat": {
+        const label = "[ ] Chat about this";
+        const color = isCursor ? "accent" : "muted";
+        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        break;
+      }
+      case "next": {
+        const label = "\u2500\u2500\u2500 Next";
+        const color = isCursor ? "accent" : "dim";
+        pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
+        break;
+      }
     }
-  }
-
-  // "Chat about this" sentinel
-  if (question.allowChat) {
-    const chatIndex = question.options.length;
-    const isCursor = chatIndex === cursor;
-    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-    const label = `[ ] Chat about this`;
-    const color = isCursor ? "accent" : "muted";
-    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
-  }
-
-  // "Next" sentinel
-  {
-    const nextIndex = question.options.length + (question.allowChat ? 1 : 0);
-    const isCursor = nextIndex === cursor;
-    const prefix = isCursor ? theme.fg("accent", "\u25B8 ") : "  ";
-    const label = "\u2500\u2500\u2500 Next";
-    const color = isCursor ? "accent" : "dim";
-    pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
   }
 
   return lines;
 }
-
-

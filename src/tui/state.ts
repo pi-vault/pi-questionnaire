@@ -11,40 +11,41 @@ export type CursorTarget =
   | { kind: "chat" }
   | { kind: "next" };
 
-export function visibleRowCount(question: NormalizedQuestion): number {
+export type RowSlot =
+  | { kind: "option"; index: number }
+  | { kind: "other" }
+  | { kind: "chat" }
+  | { kind: "next" };
+
+export function rowLayout(question: NormalizedQuestion): RowSlot[] {
+  const slots: RowSlot[] = question.options.map((_option, index) => ({
+    kind: "option",
+    index,
+  }));
+
   if (!question.multiSelect) {
-    return (
-      question.options.length +
-      (question.allowOther ? 1 : 0) +
-      (question.allowChat ? 1 : 0)
-    );
+    if (question.allowOther) slots.push({ kind: "other" });
+    if (question.allowChat) slots.push({ kind: "chat" });
+  } else {
+    if (question.allowChat) slots.push({ kind: "chat" });
+    slots.push({ kind: "next" });
   }
-  // multi-select: options + chat? + Next
-  return question.options.length + (question.allowChat ? 1 : 0) + 1;
+
+  return slots;
+}
+
+export function visibleRowCount(question: NormalizedQuestion): number {
+  return rowLayout(question).length;
 }
 
 export function cursorTarget(
   question: NormalizedQuestion,
   cursor: number,
 ): CursorTarget {
-  if (cursor < question.options.length) {
-    return { kind: "option", index: cursor };
-  }
-
-  let sentinel = question.options.length;
-
-  if (!question.multiSelect) {
-    if (question.allowOther && cursor === sentinel) return { kind: "other" };
-    if (question.allowOther) sentinel++;
-    if (question.allowChat && cursor === sentinel) return { kind: "chat" };
-    return { kind: "option", index: question.options.length - 1 };
-  }
-
-  // multi-select
-  if (question.allowChat && cursor === sentinel) return { kind: "chat" };
-  if (question.allowChat) sentinel++;
-  if (cursor === sentinel) return { kind: "next" };
-  return { kind: "option", index: question.options.length - 1 };
+  const slots = rowLayout(question);
+  const slot = slots[Math.min(cursor, slots.length - 1)];
+  if (slot.kind === "option") return { kind: "option", index: slot.index };
+  return { kind: slot.kind };
 }
 
 export interface QuestionnaireState {

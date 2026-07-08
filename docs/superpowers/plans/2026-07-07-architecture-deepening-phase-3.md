@@ -13,6 +13,7 @@
 ### Task 1: Add RowSlot type and rowLayout function
 
 **Files:**
+
 - Modify: `src/tui/state.ts:1-6` (add NormalizedOption import)
 - Modify: `src/tui/state.ts:8-48` (add RowSlot, rowLayout; rewrite cursorTarget, visibleRowCount)
 - Test: `tests/tui/state.test.ts`
@@ -214,6 +215,7 @@ Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.
 ### Task 2: Rewrite render-question.ts to iterate RowSlot[]
 
 **Files:**
+
 - Modify: `src/tui/render-question.ts`
 - Test: `tests/tui/render-question.test.ts` (no changes — same behavioral assertions)
 
@@ -221,13 +223,16 @@ Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.
 
 Replace the entire content of `src/tui/render-question.ts` with:
 
-**Note:** If Phase 1 (dissolve theme.ts) has already landed, the `import type { RenderTheme } from "./theme.ts"` line should be removed and the `RenderTheme` interface will already be defined in this file (keep it). Adjust accordingly.
-
 ```ts
 import type { NormalizedQuestion } from "../core/types.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
-import type { RenderTheme } from "./theme.ts";
 import { rowLayout } from "./state.ts";
+
+export interface RenderTheme {
+  fg(color: string, text: string): string;
+  bg(color: string, text: string): string;
+  bold(text: string): string;
+}
 
 export function renderSingleChoiceQuestion(
   question: NormalizedQuestion,
