@@ -30,7 +30,7 @@ export function renderSingleChoiceQuestion(
 
     switch (slot.kind) {
       case "option": {
-        const opt = slot.option;
+        const opt = question.options[slot.index];
         const isSelected = selectedValue === opt.value;
         const recSuffix =
           question.recommendation === opt.value ? " [recommended]" : "";
@@ -94,8 +94,6 @@ export function renderSingleChoiceQuestion(
         pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
         break;
       }
-      case "next":
-        break;
     }
   }
 
@@ -122,7 +120,7 @@ export function renderMultiChoiceQuestion(
 
     switch (slot.kind) {
       case "option": {
-        const opt = slot.option;
+        const opt = question.options[slot.index];
         const isChecked = checked.has(opt.value);
         const marker = isChecked ? "[\u2022]" : "[ ]";
         const recSuffix =
@@ -153,8 +151,6 @@ export function renderMultiChoiceQuestion(
         pushWrappedWithPrefix(lines, prefix, theme.fg(color, label), width);
         break;
       }
-      case "other":
-        break;
     }
   }
 
