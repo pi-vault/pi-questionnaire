@@ -1,4 +1,4 @@
-import type { RenderTheme } from "../../src/tui/theme.ts";
+import type { RenderTheme } from "../../src/tui/render-question.ts";
 
 export const noopTheme: RenderTheme = {
   fg: (_color: string, text: string) => text,

@@ -1,7 +1,7 @@
 import type { NormalizedQuestion, QuestionSelection } from "../core/types.ts";
 import { formatAnswerForRender } from "../core/format.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
-import type { RenderTheme } from "./theme.ts";
+import type { RenderTheme } from "./render-question.ts";
 
 export function renderReviewScreen(
   questions: NormalizedQuestion[],

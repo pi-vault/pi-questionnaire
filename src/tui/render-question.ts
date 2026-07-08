@@ -1,6 +1,11 @@
 import type { NormalizedQuestion } from "../core/types.ts";
 import { pushWrapped, pushWrappedWithPrefix } from "./helpers.ts";
-import type { RenderTheme } from "./theme.ts";
+
+export interface RenderTheme {
+  fg(color: string, text: string): string;
+  bg(color: string, text: string): string;
+  bold(text: string): string;
+}
 
 export function renderSingleChoiceQuestion(
   question: NormalizedQuestion,
