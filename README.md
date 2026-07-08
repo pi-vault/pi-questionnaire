@@ -2,12 +2,14 @@
 
 [![npm version](https://img.shields.io/npm/v/%40pi-vault%2Fpi-questionnaire)](https://www.npmjs.com/package/@pi-vault/pi-questionnaire)
 [![Quality](https://github.com/pi-vault/pi-questionnaire/actions/workflows/quality.yml/badge.svg?branch=master)](https://github.com/pi-vault/pi-questionnaire/actions/workflows/quality.yml)
-[![Node >= 22.19](https://img.shields.io/badge/node-%3E%3D22.19-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node >= 24.15.0](https://img.shields.io/badge/node-%3E%3D24.15.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-Stop guessing and ask better follow-up questions. `@pi-vault/pi-questionnaire` adds a `questionnaire` tool to Pi so an agent can collect several related answers in one focused interaction.
+## Description
 
-Use it when you want the agent to pause, ask a few structured questions, and then continue with clearer input.
+Add a `questionnaire` tool to Pi so an agent can ask a few structured questions in one focused interaction.
+
+Use it when the agent needs decisions, preferences, or confirmation before it keeps going.
 
 ## Install
 
@@ -21,41 +23,24 @@ Then reload Pi:
 /reload
 ```
 
-## Good uses
+## When to use it
 
-Use `questionnaire` for things like:
+Use `questionnaire` when you want to:
 
-- narrowing scope before implementation
-- choosing between a few approaches
-- collecting rollout or release preferences
-- confirming priorities before the agent starts work
-- batching several related decisions into one prompt
+- narrow scope before implementation
+- choose between a few approaches
+- collect rollout or release preferences
+- confirm priorities before the agent starts work
+- batch several related decisions into one prompt
 
-If the user is already talking through the problem in free-form, normal conversation is usually better.
+If the user is already working through the problem in free-form, normal chat is usually better.
 
-## What it feels like to use
-
-The user sees one question at a time in an interactive terminal flow, then reviews everything before submitting.
-
-A question can lead to any of these outcomes:
-
-- pick one option
-- pick several options
-- type a custom answer
-- say “Chat about this” instead
-- add a note with extra context
-
-That makes it useful when you want structure without forcing every answer into a rigid preset.
-
-## Typical example
-
-A release-planning questionnaire might look like this:
+## Basic example
 
 ```ts
 questionnaire({
   questions: [
     {
-      type: "single-choice",
       id: "scope",
       header: "Scope",
       prompt: "Which scope should we ship first?",
@@ -68,29 +53,50 @@ questionnaire({
         { value: "full", label: "Full", description: "Broader first release" },
       ],
       recommendation: "small",
-      allowOther: true,
-      allowChat: true,
     },
     {
-      type: "multi-choice",
       id: "checks",
       header: "Checks",
       prompt: "Which release checks should we run?",
-      options: [
-        { value: "lint", label: "Lint" },
-        { value: "types", label: "Typecheck" },
-        { value: "tests", label: "Tests" },
-      ],
-      recommendation: ["lint", "types", "tests"],
-      allowChat: true,
+      options: [{ label: "Lint" }, { label: "Typecheck" }, { label: "Tests" }],
+      multiSelect: true,
+      recommendation: "Lint",
     },
   ],
 });
 ```
 
+## What you can ask
+
+Each question has:
+
+- `id` — unique key
+- `header` — short label for tabs and summaries
+- `prompt` — the full question
+- `options` — 2 to 12 choices
+
+Optional fields:
+
+- `multiSelect: true` — allow more than one choice
+- `recommendation` — mark the suggested option
+- `allowOther` — let the user type a custom answer
+- `allowChat` — let the user say they want to discuss it instead
+
+If an option omits `value`, the label is used as the value.
+
+## What the user can do
+
+For each question, the user can:
+
+- pick one option
+- pick several options when `multiSelect` is enabled
+- type a custom answer
+- choose `Chat about this`
+- add a note with extra context
+
 ## What the agent gets back
 
-After submission, the tool returns a compact summary the agent can use immediately.
+The tool returns a compact text summary the agent can use right away.
 
 Example:
 
@@ -100,24 +106,37 @@ Scope note: "keep the first release tight"
 Checks: user selected: 1. Lint, 2. Typecheck, 3. Tests
 ```
 
-It can also capture answers like:
+Other possible results:
 
 ```text
 Scope: user wrote: "Ship only the core questionnaire flow"
 Features: user wants to discuss this question
 ```
 
-## Writing better questionnaires
+If the user cancels, the tool returns:
 
-A few habits make the tool work better:
+```text
+User cancelled the questionnaire
+```
 
-- keep it short
-- ask only questions that affect the next decision
-- offer clear, concrete options
-- include a recommended option when you have one
-- leave `allowOther` on when a custom answer might matter
-- leave `allowChat` on when the user may need to talk something through
+## Limits
+
+- 1 to 10 questions per call
+- 2 to 12 options per question
+
+## Development
+
+```bash
+pnpm install
+pnpm check
+pnpm run pack:dry-run
+pnpm run release:check
+```
+
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
 
 ## License
 
-MIT
+MIT — see [`LICENSE`](LICENSE).

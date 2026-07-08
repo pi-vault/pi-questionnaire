@@ -2,6 +2,23 @@
 
 All notable changes to `@pi-vault/pi-questionnaire` are documented in this file.
 
+## 0.2.0 - 2026-07-08
+
+### Changed
+
+- Questionnaire schema flattened: `type: "single-choice" | "multi-choice"` replaced by a single `QuestionSchema` with `multiSelect?: boolean` (defaults to `false`).
+- `option.value` is now optional; when omitted it defaults to the option's `label`.
+- Core pipeline simplified: `processQuestions` removed in favor of explicit `validateQuestions` then `normalizeQuestions`. Tool description now references "single-select / multi-select".
+- TUI input handling refactored around a pure interpreter that returns a list of effects (state dispatches, editor text resets, forwards) — keeps the UI adapter thin and moves notes-mode Up/Down save-and-exit into the input layer.
+- TUI rendering consolidated: one `renderQuestion` function walks a `RowSlot[]` (option / other / chat / next) instead of separate per-type renderers.
+- `theme.ts` seam dissolved; the render theme interface lives where it is used.
+- Minimum supported Node bumped from `>=22.19.0` to `>=24.15.0`.
+- Internal dependency versions bumped (`@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui` to `^0.80.3`, `typebox` to `^1.3.3`).
+
+### Notes
+
+- No user-facing behavior changes beyond the schema rename and option-value defaulting. Validation, normalization, TUI flow, and result shape are unchanged.
+
 ## 0.1.0 - 2026-06-21
 
 ### Added
