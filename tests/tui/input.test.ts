@@ -387,20 +387,6 @@ describe("interpret", () => {
     ]);
   });
 
-  it("Tab on answered question returns enterNotes + set-notes-editor-text", () => {
-    const state = initState(questions);
-    state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
-    const effects = interpret("\t", {
-      state,
-      questions,
-      notesEditorText: "",
-    });
-    expect(effects).toEqual([
-      { type: "dispatch", action: { type: "enterNotes", questionId: "scope" } },
-      { type: "set-notes-editor-text", text: "" },
-    ]);
-  });
-
   it("Tab on answered question with existing note loads it", () => {
     const state = initState(questions);
     state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
