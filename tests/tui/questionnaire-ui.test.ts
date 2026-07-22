@@ -59,6 +59,7 @@ function driveCustom(questions: NormalizedQuestion[]) {
   return {
     component: () => component,
     done,
+    requestRender: tui.requestRender,
     result: runQuestionnaireUI(ctx, questions),
   };
 }
@@ -77,7 +78,13 @@ describe("runQuestionnaireUI", () => {
       cancelled: false,
       responses: [{ questionId: "scope", selection: { kind: "option", value: "small" } }],
     });
+
+    input(harness, "\r");
+    input(harness, "\x1b");
+    input(harness, "ignored");
+
     expect(harness.done).toHaveBeenCalledTimes(1);
+    expect(harness.requestRender).not.toHaveBeenCalled();
   });
 
   it("resolves a one-question chat response on Enter", async () => {
@@ -145,5 +152,26 @@ describe("runQuestionnaireUI", () => {
     expect(harness.done).not.toHaveBeenCalled();
     input(harness, "\x1b");
     await expect(harness.result).resolves.toMatchObject({ cancelled: true });
+  });
+
+  it("keeps Review submission for two questions", async () => {
+    const harness = driveCustom([single, multi]);
+
+    input(harness, "\r");
+    input(harness, " ");
+    input(harness, "\x1b[B");
+    input(harness, "\x1b[B");
+    input(harness, "\r");
+
+    expect(harness.done).not.toHaveBeenCalled();
+    input(harness, "\r");
+    await expect(harness.result).resolves.toMatchObject({
+      cancelled: false,
+      responses: [
+        { questionId: "scope", selection: { kind: "option", value: "small" } },
+        { questionId: "features", selection: { kind: "options" } },
+      ],
+    });
+    expect(harness.done).toHaveBeenCalledTimes(1);
   });
 });
