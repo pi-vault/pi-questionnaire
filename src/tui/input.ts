@@ -28,6 +28,7 @@ function dispatch(a: Action): Effect {
 
 export function interpret(data: string, ctx: InputContext): Effect[] {
   const { state, questions } = ctx;
+  const isMultiQuestion = questions.length > 1;
   const reviewTabIndex = questions.length;
   const totalTabs = questions.length + 1;
   const q = currentQuestion(state, questions);
@@ -80,10 +81,14 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
 
   // Left/Right navigate tabs
   if (matchesKey(data, Key.right)) {
-    return [dispatch({ type: "switchTab", tab: (state.activeTab + 1) % totalTabs })];
+    return isMultiQuestion
+      ? [dispatch({ type: "switchTab", tab: (state.activeTab + 1) % totalTabs })]
+      : [];
   }
   if (matchesKey(data, Key.left)) {
-    return [dispatch({ type: "switchTab", tab: (state.activeTab - 1 + totalTabs) % totalTabs })];
+    return isMultiQuestion
+      ? [dispatch({ type: "switchTab", tab: (state.activeTab - 1 + totalTabs) % totalTabs })]
+      : [];
   }
 
   // Review tab
