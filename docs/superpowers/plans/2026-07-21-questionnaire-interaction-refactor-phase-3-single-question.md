@@ -2,23 +2,25 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Resolve a one-question questionnaire when its answer is committed, with no tabs or Review screen.
+**Goal:** Resolve a one-question questionnaire when its answer is committed, without tabs or a Review detour.
 
-**Architecture:** `input.ts` and `render.ts` treat tabs/review as multi-question-only presentation. `questionnaire-ui.ts` becomes the single completion boundary through a local `applyAction` helper that finalizes only valid one-question commits.
+**Architecture:** Derive single-question mode from `questions.length === 1`. `input.ts` disables tab navigation, `render.ts` removes tab/review chrome while retaining the question header, and `questionnaire-ui.ts` owns one completion boundary after reducer transitions. Tests drive the real Pi `Editor` through `ui.custom`, matching the reference package’s public component harness.
 
 **Tech Stack:** TypeScript, Vitest, `@earendil-works/pi-tui`.
 
 ---
 
-## File map
+## Scope and file map
 
-- `src/tui/input.ts` — disables tab switching for one question.
-- `src/tui/render.ts` — hides tab/review chrome and inaccurate key hints.
-- `src/tui/questionnaire-ui.ts` — finalizes valid commits once.
-- `tests/tui/input.test.ts`, `tests/tui/render.test.ts` — pure behavior.
-- `tests/tui/questionnaire-ui.test.ts` — create an adapter harness if absent.
+- `src/tui/input.ts` — disables Left/Right tab effects for one question.
+- `src/tui/render.ts` — hides tabs, keeps the single-question header, and removes inaccurate tab hints.
+- `src/tui/questionnaire-ui.ts` — centralizes state application and one-question completion.
+- `tests/tui/input.test.ts`, `tests/tui/render.test.ts` — pure navigation and presentation regressions.
+- `tests/tui/questionnaire-ui.test.ts` — real `ui.custom`/`Editor` interaction tests.
 
-### Task 1: Remove one-question tab and review presentation
+No public API, result shape, reducer action, or multi-question behavior changes. Recommendation-to-answer synchronization remains phase 5.
+
+### Task 1: Make navigation and rendering single-question-aware
 
 **Files:**
 
@@ -27,38 +29,45 @@
 - Modify: `tests/tui/input.test.ts`
 - Modify: `tests/tui/render.test.ts`
 
-- [ ] **Step 1: Add no-tab interpreter regressions.**
+- [ ] **Step 1: Add failing pure regressions.** Use `const one = questions.slice(0, 1)` so the tests add no non-null assertions.
 
 ```ts
 it("does not create tab-navigation effects for one question", () => {
-  const one = [questions[0]!];
+  const one = questions.slice(0, 1);
   expect(interpret("\x1b[C", ctx(one))).toEqual([]);
   expect(interpret("\x1b[D", ctx(one))).toEqual([]);
 });
-```
 
-- [ ] **Step 2: Add rendering regression.**
-
-```ts
-it("hides tabs and review chrome for one question", () => {
-  const one = [questions[0]!];
-  const text = renderQuestionnaire(initState(one), one, [], [], noopTheme, 80).join("\n");
+it("hides tabs and review chrome but keeps the single-question header", () => {
+  const one = questions.slice(0, 1);
+  const text = renderQuestionnaire(
+    initState(one),
+    one,
+    [],
+    [],
+    noopTheme,
+    80,
+  ).join("\n");
+  expect(text).toContain("Scope");
   expect(text).not.toContain("Review");
   expect(text).not.toContain("Left/Right tabs");
 });
 ```
 
-- [ ] **Step 3: Run the focused tests and confirm they fail.**
+- [ ] **Step 2: Run the focused tests and confirm the new expectations fail.**
 
 ```bash
 pnpm exec vitest run tests/tui/input.test.ts tests/tui/render.test.ts
 ```
 
-- [ ] **Step 4: In `src/tui/input.ts`, add and use the session-size guard.**
+Expected: the one-question arrows still dispatch `switchTab`, and the tab bar/hint still render.
+
+- [ ] **Step 3: Guard Left/Right in `src/tui/input.ts`.** Derive `const isMultiQuestion = questions.length > 1`; return `[]` for Left/Right when false, and retain the existing `questions.length + 1` tab cycle for multi-question sessions.
 
 ```ts
 const isMultiQuestion = questions.length > 1;
-const totalTabs = isMultiQuestion ? questions.length + 1 : questions.length;
+const reviewTabIndex = questions.length;
+const totalTabs = questions.length + 1;
 
 if (matchesKey(data, Key.right)) {
   return isMultiQuestion
@@ -67,79 +76,57 @@ if (matchesKey(data, Key.right)) {
 }
 if (matchesKey(data, Key.left)) {
   return isMultiQuestion
-    ? [dispatch({ type: "switchTab", tab: (state.activeTab - 1 + totalTabs) % totalTabs })]
+    ? [
+        dispatch({
+          type: "switchTab",
+          tab: (state.activeTab - 1 + totalTabs) % totalTabs,
+        }),
+      ]
     : [];
 }
 ```
 
-Leave the existing review branch intact: it is unreachable for a one-question session once no action can switch there.
+- [ ] **Step 4: Make the renderer single-question-aware.** Call `renderTabBar` only when `questions.length > 1`. Before rendering the question body in single-question mode, retain the short header with the selected-tab styling:
 
-- [ ] **Step 5: In `src/tui/render.ts`, render `renderTabBar` only for `questions.length > 1`.** For question hints, use `Up/Down select | ...`; retain the existing `Left/Right tabs | ...` text only for multi-question sessions. Do not change the review renderer.
+```ts
+if (!isMultiQuestion) {
+  lines.push(theme.bg("selectedBg", theme.fg("text", ` ${q.header} `)), "");
+}
+```
 
-- [ ] **Step 6: Verify this task passes.**
+Keep the Review renderer and Review hint unchanged for multi-question sessions. For question hints, include `Left/Right tabs | ` only when `isMultiQuestion` is true.
+
+- [ ] **Step 5: Verify and commit Task 1.**
 
 ```bash
 pnpm exec vitest run tests/tui/input.test.ts tests/tui/render.test.ts
+git add src/tui/input.ts src/tui/render.ts tests/tui/input.test.ts tests/tui/render.test.ts
+git commit -m "feat(tui): simplify single-question presentation"
 ```
 
 Expected: PASS.
 
-### Task 2: Finalize valid single-question commits in the UI adapter
+### Task 2: Complete valid one-question commits at the UI adapter boundary
 
 **Files:**
 
 - Modify: `src/tui/questionnaire-ui.ts`
 - Create: `tests/tui/questionnaire-ui.test.ts`
 
-- [ ] **Step 1: Create a focused `ui.custom` harness.** Mock `Editor` with `onSubmit`, `setText`, `getText`, `handleInput`, and `render`. Capture the component and `done` callback supplied by `ui.custom`; use a fake TUI with `requestRender` and a theme whose `fg`, `bg`, and `bold` return their input unchanged.
+- [ ] **Step 1: Add a real Pi component harness.** Follow the `driveCustom` pattern in `rpiv-ask-user-question/factory.test.ts`: invoke the `ui.custom` factory synchronously, instantiate the real `Editor`, supply an identity theme and `{ requestRender }`, capture the returned component and a wrapped `done`, and expose the UI promise for assertions. Do not mock `Editor` methods.
 
-Add these fixtures in the test file before `createHarness`:
+The harness must use these real key sequences: Enter `"\r"`, Escape `"\x1b"`, Down `"\x1b[B"`, and Space `" "`. Its `done` wrapper resolves the promise and remains a Vitest spy.
 
-```ts
-const singleQuestion: NormalizedQuestion = {
-  multiSelect: false, id: "scope", header: "Scope", prompt: "Pick scope",
-  options: [{ value: "small", label: "Small" }, { value: "large", label: "Large" }],
-  recommendation: null, allowOther: false, allowChat: false,
-};
-const singleMultiQuestion: NormalizedQuestion = {
-  multiSelect: true, id: "features", header: "Features", prompt: "Pick features",
-  options: [{ value: "auth", label: "Auth" }, { value: "log", label: "Logging" }],
-  recommendation: "auth", allowOther: false, allowChat: false,
-};
-```
+- [ ] **Step 2: Add failing adapter scenarios.** Use fixtures for a single-select question, a single-select question with `allowOther`, a single-select question with `allowChat`, and a single multi-select question with `recommendation: null`.
 
-- [ ] **Step 2: Add the immediate-completion tests.**
+Cover these exact flows:
 
-```ts
-it("resolves one single-select answer immediately", async () => {
-  const ui = createHarness([singleQuestion]);
-  ui.component.handleInput("\r");
-  expect(ui.done).toHaveBeenCalledWith(expect.objectContaining({
-    cancelled: false,
-    responses: [{ questionId: "scope", selection: { kind: "option", value: "small", label: "Small" } }],
-  }));
-});
-
-it("does not resolve a whitespace custom submission", () => {
-  const ui = createHarness([{ ...singleQuestion, allowOther: true }]);
-  ui.component.handleInput("\x1b[B");
-  ui.component.handleInput("\r");
-  ui.editor.onSubmit("   ");
-  expect(ui.done).not.toHaveBeenCalled();
-});
-
-it("does not resolve one multi-select question until Next", () => {
-  const ui = createHarness([singleMultiQuestion]);
-  ui.component.handleInput(" ");
-  expect(ui.done).not.toHaveBeenCalled();
-  ui.component.handleInput("\x1b[B");
-  ui.component.handleInput("\x1b[B");
-  ui.component.handleInput("\r");
-  expect(ui.done).toHaveBeenCalledTimes(1);
-});
-```
-
-Use the fixture's actual row count for the two Down inputs if it has more than one option. Do not assert a pending Promise: the captured `done` callback is deterministic.
+1. Enter on the first option resolves one option response immediately.
+2. Down twice then Enter on `Chat about this` resolves one chat response immediately.
+3. Down twice, Enter, type `Custom` character-by-character, then Enter resolves one custom response.
+4. Down twice, Enter, submit only whitespace, and assert `done` has not been called; press Escape to settle the harness as cancelled.
+5. Space toggles a multi-select option without calling `done`; Down twice to `Next`, then Enter resolves one options response.
+6. With two questions, answering the first does not call `done`; Escape settles the harness.
 
 - [ ] **Step 3: Run the adapter test and confirm it fails.**
 
@@ -147,41 +134,62 @@ Use the fixture's actual row count for the two Down inputs if it has more than o
 pnpm exec vitest run tests/tui/questionnaire-ui.test.ts
 ```
 
-Expected: single-select confirmation does not call `done` because the current reducer advances to Review.
+Expected: single-question option/chat/custom actions advance to the synthetic Review state without resolving the `ui.custom` promise.
 
-- [ ] **Step 4: Import `Action` and add `applyAction` in `src/tui/questionnaire-ui.ts`.**
+- [ ] **Step 4: Add the completion boundary in `src/tui/questionnaire-ui.ts`.** Import `Action` and `allAnswered`, then use one completion guard and one reducer entry point:
 
 ```ts
-function applyAction(action: Action): boolean {
-  state = reduce(state, action, questions);
-  const commits =
-    action.type === "selectOption" ||
-    action.type === "selectChat" ||
-    action.type === "confirmMulti" ||
-    (action.type === "submitTyping" && action.value.trim().length > 0);
+let completed = false;
 
-  if (questions.length === 1 && commits && state.answers.has(questions[0]!.id)) {
-    done(buildResult(state, questions, false));
+function finish(cancelled: boolean): void {
+  if (completed) return;
+  completed = true;
+  done(buildResult(state, questions, cancelled));
+}
+
+function applyAction(action: Action): boolean {
+  if (completed) return true;
+  state = reduce(state, action, questions);
+
+  if (
+    questions.length === 1 &&
+    state.activeTab === questions.length &&
+    allAnswered(state, questions)
+  ) {
+    finish(false);
     return true;
   }
   return false;
 }
 ```
 
-- [ ] **Step 5: Route every action through `applyAction`.** In both editor `onSubmit` callbacks and the `dispatch` effect case, return from `handleInput` when `applyAction` returns true. On the non-completed path retain the existing editor clearing and `tui.requestRender()` calls. The trimmed-value condition prevents stale custom text from being resubmitted when whitespace is entered.
+Route both editor submission callbacks and every `dispatch` effect through `applyAction`. If a submission completes, skip editor clearing and rendering. In `handleInput`, return immediately after a completing dispatch, use `finish(effect.cancelled)` for explicit finalize effects, and return after forwarding editor input when `completed` becomes true. Ignore later input once completed.
 
-- [ ] **Step 6: Verify the phase and commit it.**
+This predicate intentionally uses the reducer’s existing transition: option/chat/valid custom/`Next` advance to Review, while checkbox toggles and whitespace custom input do not.
+
+- [ ] **Step 5: Verify and commit Task 2.**
 
 ```bash
 pnpm exec vitest run tests/tui/input.test.ts tests/tui/render.test.ts tests/tui/questionnaire-ui.test.ts
-git add src/tui/input.ts src/tui/render.ts src/tui/questionnaire-ui.ts tests/tui/input.test.ts tests/tui/render.test.ts tests/tui/questionnaire-ui.test.ts
+git add src/tui/questionnaire-ui.ts tests/tui/questionnaire-ui.test.ts
 git commit -m "feat(tui): submit single-question responses immediately"
 ```
 
-Expected: Vitest passes before committing.
+Expected: PASS, with exactly one completion callback per valid one-question commit.
+
+## Final verification
+
+Run:
+
+```bash
+pnpm check
+git diff --check
+```
+
+The existing Biome schema-version and phase-1 non-null-assertion diagnostics are baseline warnings and remain out of scope; this phase must not add new warnings.
 
 ## Plan self-review
 
-- **Spec coverage:** Covers immediate option/chat/custom/multi-next commits and removes the one-question Review detour.
-- **Placeholder scan:** Every test observes the captured completion callback, avoiding timing-dependent assertions.
-- **Type consistency:** `Action`, `buildResult`, `reduce`, and UI `done` already exist; `applyAction` is local to the adapter.
+- Covers option, chat, custom, multi-select `Next`, whitespace rejection, no-tab navigation, retained header, and multi-question non-regression.
+- Uses no placeholders or new public interfaces.
+- Leaves recommendation synchronization and multi-select custom-answer exclusivity to phase 5, where those changes are already planned.

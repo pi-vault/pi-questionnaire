@@ -189,9 +189,11 @@ git commit -m "feat: publish questionnaire wait status"
 
 ## Phase 3 — Single-question fast path
 
-This is independently usable: a one-question prompt completes as soon as the user commits a valid answer, without a Review detour.
+This is independently usable: a one-question prompt completes as soon as the user commits a valid answer, without tabs or a Review detour. The detailed, executable plan is [phase 3: single-question fast path](2026-07-21-questionnaire-interaction-refactor-phase-3-single-question.md) and supersedes the legacy task breakdown below.
 
-### Task 3: Make tabs and review multi-question-only
+The revised plan retains the single-question header after removing the tab bar, uses the real Pi Editor/ui.custom harness from the reference package, centralizes completion after reducer transitions, and leaves recommendation synchronization to phase 5.
+
+### Legacy Task 3 (superseded; do not execute)
 
 **Files:**
 
