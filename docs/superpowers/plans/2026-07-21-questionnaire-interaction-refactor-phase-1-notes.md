@@ -4,7 +4,7 @@
 
 **Goal:** Let users open and save a note for a question before choosing its answer.
 
-**Architecture:** Keep notes in the existing `QuestionnaireState.notes` map. Only remove the interpreter's answer-presence gate; `buildResult` already attaches a saved note when the question later has a selection.
+**Architecture:** Keep notes in the existing `QuestionnaireState.notes` map. In navigate mode, `Tab` opens the existing notes editor whenever a question tab is active; typing and notes modes keep their existing precedence, and Review still has no active question. No reducer or result-builder change is required.
 
 **Tech Stack:** TypeScript, Vitest, `@earendil-works/pi-tui`.
 
@@ -12,57 +12,43 @@
 
 ## File map
 
-- `src/tui/input.ts` — maps Tab to notes-editor effects.
-- `src/tui/state.ts` — retains saved notes and creates final responses.
-- `tests/tui/input.test.ts` — interpreter regression.
-- `tests/tui/state.test.ts` — result regression.
+- `src/tui/input.ts` — removes the answer-presence gate from the Tab notes effect.
+- `tests/tui/input.test.ts` — proves Tab opens notes on unanswered single- and multi-select question tabs.
 
-### Task 1: Permit notes on unanswered questions
+### Task 1: Permit notes on unanswered question tabs
 
 **Files:**
 
 - Modify: `src/tui/input.ts`
 - Modify: `tests/tui/input.test.ts`
-- Modify: `tests/tui/state.test.ts`
 
-- [ ] **Step 1: Add the failing Tab regression to `tests/tui/input.test.ts`.**
-
-```ts
-it("opens notes for an unanswered question", () => {
-  expect(interpret("\t", ctx(questions))).toEqual([
-    { type: "dispatch", action: { type: "enterNotes", questionId: "scope" } },
-    { type: "set-notes-editor-text", text: "" },
-  ]);
-});
-```
-
-- [ ] **Step 2: Add the final-result regression to `tests/tui/state.test.ts`.** Ensure the test imports `buildResult` if it does not already.
+- [ ] **Step 1: Replace the existing `Tab on unanswered question returns empty effects` regression with this parameterized positive case.**
 
 ```ts
-it("attaches a note saved before the answer", () => {
-  const state = initState(questions);
-  state.notes.set("scope", "Keep this small");
-  state.answers.set("scope", { kind: "option", value: "small", label: "Small" });
-
-  expect(buildResult(state, questions, false).responses).toEqual([
-    {
-      questionId: "scope",
-      selection: { kind: "option", value: "small", label: "Small" },
-      notes: "Keep this small",
-    },
-  ]);
-});
+it.each([0, 1])(
+  "Tab opens notes for unanswered question tab %i",
+  (activeTab) => {
+    const question = questions[activeTab]!;
+    expect(interpret("\t", ctx(questions, { activeTab }))).toEqual([
+      {
+        type: "dispatch",
+        action: { type: "enterNotes", questionId: question.id },
+      },
+      { type: "set-notes-editor-text", text: "" },
+    ]);
+  },
+);
 ```
 
-- [ ] **Step 3: Verify the new input regression fails.**
+- [ ] **Step 2: Verify both new cases fail.**
 
 ```bash
-pnpm exec vitest run tests/tui/input.test.ts tests/tui/state.test.ts
+pnpm exec vitest run tests/tui/input.test.ts
 ```
 
-Expected: `opens notes for an unanswered question` fails because the Tab branch currently requires `state.answers.has(q.id)`.
+Expected: both parameterized cases fail because the Tab branch currently requires `state.answers.has(q.id)`.
 
-- [ ] **Step 4: Remove only the answer gate in `src/tui/input.ts`.**
+- [ ] **Step 3: Remove only the answer gate in `src/tui/input.ts`.**
 
 ```ts
 if (matchesKey(data, Key.tab)) {
@@ -76,25 +62,26 @@ if (matchesKey(data, Key.tab)) {
 }
 ```
 
-Do not change `buildResult`; its existing response construction already reads `state.notes.get(q.id)` after confirming an answer exists.
+Do not change `state.ts`, `buildResult`, rendering, public types, or the Tab shortcut. Existing typing and notes mode branches run before this branch, and `currentQuestion` remains undefined on Review.
 
-- [ ] **Step 5: Verify the focused regressions pass.**
+- [ ] **Step 4: Verify the focused regression passes, then run the complete project check.**
 
 ```bash
-pnpm exec vitest run tests/tui/input.test.ts tests/tui/state.test.ts
+pnpm exec vitest run tests/tui/input.test.ts
+pnpm check
 ```
 
-Expected: PASS.
+Expected: both commands pass. The existing answered-note preload and Review no-op regressions remain green.
 
-- [ ] **Step 6: Commit the phase.**
+- [ ] **Step 5: Commit the phase.**
 
 ```bash
-git add src/tui/input.ts tests/tui/input.test.ts tests/tui/state.test.ts
+git add src/tui/input.ts tests/tui/input.test.ts
 git commit -m "feat(tui): allow notes before answering"
 ```
 
 ## Plan self-review
 
-- **Spec coverage:** Covers the approved pre-answer note behavior and confirms notes appear after the answer is supplied.
+- **Spec coverage:** Covers both question types before an answer exists while retaining existing saved-note preload, reducer, and result coverage.
 - **Placeholder scan:** No deferred work or unspecified tests.
-- **Type consistency:** Uses existing `interpret`, `ctx`, `initState`, and `buildResult` interfaces.
+- **Type consistency:** Uses existing `interpret`, `ctx`, `QuestionnaireState`, and `Effect` interfaces.
