@@ -1,21 +1,34 @@
-import { describe, expect, it } from "vitest";
 import type {
   ExtensionAPI,
   ExtensionContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it, vi } from "vitest";
+import { QUESTIONNAIRE_STATUS_EVENT } from "../src/events.ts";
 import createExtension from "../src/index.ts";
-import {
-  QUESTIONNAIRE_STATUS_EVENT,
-  type QuestionnaireStatusEventPayload,
-} from "../src/events.ts";
 
-const _payloadTypeAllowsOtherLabels: QuestionnaireStatusEventPayload = {
+const validParams = {
+  questions: [
+    {
+      id: "scope",
+      header: "Scope",
+      prompt: "Which scope?",
+      options: [{ label: "Small" }, { label: "Full" }],
+    },
+  ],
+};
+const activeStatus = {
   active: true,
-  label: "A different waiting label",
+  label: "Waiting for questionnaire response",
+};
+const inactiveStatus = { active: false };
+const cancelledResult = {
+  questions: [],
+  responses: [],
+  cancelled: true,
 };
 
-function createDeferred<T>() {
+function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason?: unknown) => void;
   const promise = new Promise<T>((res, rej) => {
@@ -25,213 +38,82 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
-function registerTool() {
-  let tool: ToolDefinition | undefined;
-  const emitted: Array<{
-    eventName: string;
-    payload: QuestionnaireStatusEventPayload;
-  }> = [];
-
-  const pi = {
-    events: {
-      emit(eventName: string, payload: QuestionnaireStatusEventPayload) {
-        emitted.push({ eventName, payload });
-      },
-    },
-    registerTool(definition: ToolDefinition) {
-      tool = definition;
-    },
-  } as Pick<ExtensionAPI, "events" | "registerTool"> as ExtensionAPI;
-
-  createExtension(pi);
-
-  if (!tool) {
-    throw new Error("questionnaire tool was not registered");
-  }
-
-  return { tool, emitted };
+function setupExtension() {
+  const registerTool = vi.fn<(tool: ToolDefinition) => void>();
+  const emit = vi.fn();
+  createExtension({ registerTool, events: { emit } } as unknown as ExtensionAPI);
+  const tool = registerTool.mock.calls[0]?.[0];
+  if (!tool) throw new Error("questionnaire tool was not registered");
+  return { tool, emit };
 }
 
-function createContext(
-  mode: ExtensionContext["mode"],
-  custom: (...args: unknown[]) => Promise<unknown>,
-): ExtensionContext {
-  return {
-    mode,
-    hasUI: true,
-    cwd: process.cwd(),
-    ui: {
-      custom: custom as unknown as ExtensionContext["ui"]["custom"],
-    },
-  } as unknown as ExtensionContext;
+function execute(tool: ToolDefinition, params: object, ctx: object) {
+  return tool.execute("tool-call", params, undefined, undefined, ctx as ExtensionContext);
 }
 
 describe("questionnaire extension", () => {
   it("registers the questionnaire tool with sequential execution", () => {
-    const { tool } = registerTool();
-    expect(tool.name).toBe("questionnaire");
-    expect(tool.executionMode).toBe("sequential");
+    const { tool } = setupExtension();
+    expect(tool).toMatchObject({ name: "questionnaire", executionMode: "sequential" });
   });
 
   it("emits active before opening the TUI and inactive after cancellation", async () => {
-    const { tool, emitted } = registerTool();
-    const deferred = createDeferred<{
-      questions: [];
-      responses: [];
-      cancelled: true;
-    }>();
-    let customStarted = false;
+    const { tool, emit } = setupExtension();
+    const pending = deferred<typeof cancelledResult>();
+    const custom = vi.fn(() => pending.promise);
 
-    const executePromise = tool.execute(
-      "tool-call",
-      {
-        questions: [
-          {
-            id: "scope",
-            header: "Scope",
-            prompt: "Which scope should we ship first?",
-            options: [{ label: "Small" }, { label: "Large" }],
-          },
-        ],
-      },
-      undefined,
-      undefined,
-      {
-        ...createContext("tui", async () => {
-          customStarted = true;
-          return deferred.promise;
-        }),
-      },
-    );
+    const execution = execute(tool, validParams, { mode: "tui", ui: { custom } });
 
-    expect(customStarted).toBe(true);
-    expect(emitted).toEqual([
-      {
-        eventName: QUESTIONNAIRE_STATUS_EVENT,
-        payload: {
-          active: true,
-          label: "Waiting for questionnaire response",
-        },
-      },
-    ]);
+    expect(custom).toHaveBeenCalledOnce();
+    expect(emit.mock.calls).toEqual([[QUESTIONNAIRE_STATUS_EVENT, activeStatus]]);
 
-    deferred.resolve({
-      questions: [],
-      responses: [],
-      cancelled: true,
-    });
-
-    const result = await executePromise;
-
-    expect(result.details).toMatchObject({ cancelled: true });
-    expect(emitted).toEqual([
-      {
-        eventName: QUESTIONNAIRE_STATUS_EVENT,
-        payload: {
-          active: true,
-          label: "Waiting for questionnaire response",
-        },
-      },
-      {
-        eventName: QUESTIONNAIRE_STATUS_EVENT,
-        payload: { active: false },
-      },
+    pending.resolve(cancelledResult);
+    await expect(execution).resolves.toMatchObject({ details: { cancelled: true } });
+    expect(emit.mock.calls).toEqual([
+      [QUESTIONNAIRE_STATUS_EVENT, activeStatus],
+      [QUESTIONNAIRE_STATUS_EVENT, inactiveStatus],
     ]);
   });
 
   it("emits inactive when the TUI rejects", async () => {
-    const { tool, emitted } = registerTool();
-    const deferred = createDeferred<never>();
+    const { tool, emit } = setupExtension();
+    const pending = deferred<never>();
+    const execution = execute(tool, validParams, {
+      mode: "tui",
+      ui: { custom: () => pending.promise },
+    });
 
-    const executePromise = tool.execute(
-      "tool-call",
-      {
-        questions: [
-          {
-            id: "scope",
-            header: "Scope",
-            prompt: "Which scope should we ship first?",
-            options: [{ label: "Small" }, { label: "Large" }],
-          },
-        ],
-      },
-      undefined,
-      undefined,
-      {
-        ...createContext("tui", async () => deferred.promise),
-      },
-    );
-
-    deferred.reject(new Error("ui failed"));
-
-    await expect(executePromise).rejects.toThrow("ui failed");
-    expect(emitted).toEqual([
-      {
-        eventName: QUESTIONNAIRE_STATUS_EVENT,
-        payload: {
-          active: true,
-          label: "Waiting for questionnaire response",
-        },
-      },
-      {
-        eventName: QUESTIONNAIRE_STATUS_EVENT,
-        payload: { active: false },
-      },
+    pending.reject(new Error("ui failed"));
+    await expect(execution).rejects.toThrow("ui failed");
+    expect(emit.mock.calls).toEqual([
+      [QUESTIONNAIRE_STATUS_EVENT, activeStatus],
+      [QUESTIONNAIRE_STATUS_EVENT, inactiveStatus],
     ]);
   });
 
   it("does not emit status events for invalid input", async () => {
-    const { tool, emitted } = registerTool();
+    const { tool, emit } = setupExtension();
+    const invalidParams = {
+      questions: [
+        {
+          ...validParams.questions[0],
+          options: [{ label: "Only option" }],
+        },
+      ],
+    };
 
-    const result = await tool.execute(
-      "tool-call",
-      {
-        questions: [
-          {
-            id: "scope",
-            header: "Scope",
-            prompt: "Which scope should we ship first?",
-            options: [{ label: "Only option" }],
-          },
-        ],
-      },
-      undefined,
-      undefined,
-      createContext("tui", async () => {
-        throw new Error("custom() should not run for invalid input");
-      }),
-    );
-
-    expect(result).toMatchObject({ isError: true });
-    expect(emitted).toEqual([]);
+    await expect(execute(tool, invalidParams, { mode: "tui" })).resolves.toMatchObject({
+      isError: true,
+    });
+    expect(emit).not.toHaveBeenCalled();
   });
 
   it("does not emit status events outside TUI mode", async () => {
-    const { tool, emitted } = registerTool();
+    const { tool, emit } = setupExtension();
 
-    const result = await tool.execute(
-      "tool-call",
-      {
-        questions: [
-          {
-            id: "scope",
-            header: "Scope",
-            prompt: "Which scope should we ship first?",
-            options: [{ label: "Small" }, { label: "Large" }],
-          },
-        ],
-      },
-      undefined,
-      undefined,
-      {
-        ...createContext("print", async () => {
-          throw new Error("custom() should not run outside TUI mode");
-        }),
-        hasUI: false,
-      },
-    );
-
-    expect(result).toMatchObject({ isError: true });
-    expect(emitted).toEqual([]);
+    await expect(execute(tool, validParams, { mode: "print" })).resolves.toMatchObject({
+      isError: true,
+    });
+    expect(emit).not.toHaveBeenCalled();
   });
 });

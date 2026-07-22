@@ -141,9 +141,6 @@ export default function createExtension(pi: ExtensionAPI) {
   pi.events.on(QUESTIONNAIRE_STATUS_EVENT, (data) => {
     const status = data as QuestionnaireStatusEventPayload;
     // Track status.active for this Pi session.
-    if (status.active) {
-      pi.events.emit("my-extension:pause", { reason: "questionnaire-open" });
-    }
   });
 }
 ```
