@@ -34,6 +34,10 @@
     "pack:dry-run": "pnpm pack --dry-run",
     "release:check": "pnpm check && pnpm run pack:dry-run"
   },
+  "exports": {
+    ".": "./src/index.ts",
+    "./events": "./src/events.ts"
+  },
   "pi": {
     "extensions": [
       "./src/index.ts"

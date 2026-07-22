@@ -8,6 +8,10 @@ import {
   formatAnswerForRender,
 } from "./core/index.ts";
 import type { QuestionInput, QuestionnaireResult } from "./core/index.ts";
+import {
+  QUESTIONNAIRE_STATUS_EVENT,
+  type QuestionnaireStatusEventPayload,
+} from "./events.ts";
 import { runQuestionnaireUI } from "./tui/questionnaire-ui.ts";
 
 function errorResult(error: string): {
@@ -26,6 +30,7 @@ export default function createExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "questionnaire",
     label: "Questionnaire",
+    executionMode: "sequential",
     description:
       "Ask the user 1-10 structured questions. Supports single-select and multi-select questions. Use for clarifying requirements, getting preferences, or confirming decisions.",
     promptSnippet:
@@ -49,12 +54,22 @@ export default function createExtension(pi: ExtensionAPI): void {
       }
 
       const questions = normalizeQuestions(params.questions);
-      const uiResult = await runQuestionnaireUI(ctx, questions);
+      pi.events.emit(QUESTIONNAIRE_STATUS_EVENT, {
+        active: true,
+        label: "Waiting for questionnaire response",
+      } satisfies QuestionnaireStatusEventPayload);
+      try {
+        const uiResult = await runQuestionnaireUI(ctx, questions);
 
-      return {
-        content: [{ type: "text", text: formatContentSummary(uiResult) }],
-        details: uiResult,
-      };
+        return {
+          content: [{ type: "text", text: formatContentSummary(uiResult) }],
+          details: uiResult,
+        };
+      } finally {
+        pi.events.emit(QUESTIONNAIRE_STATUS_EVENT, {
+          active: false,
+        } satisfies QuestionnaireStatusEventPayload);
+      }
     },
 
     renderCall(args, theme, _context) {

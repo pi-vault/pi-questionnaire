@@ -119,6 +119,32 @@ If the user cancels, the tool returns:
 User cancelled the questionnaire
 ```
 
+## Integration events
+
+The extension emits a shared Pi event only for a valid TUI questionnaire wait:
+
+- `pi-vault:questionnaire:status`
+
+`{ active: true, label }` is emitted immediately before waiting for the interactive questionnaire in TUI mode.
+`{ active: false }` is emitted when that wait settles, including cancellation or UI failure.
+
+You can listen for it from another extension:
+
+```ts
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import {
+  QUESTIONNAIRE_STATUS_EVENT,
+  type QuestionnaireStatusEventPayload,
+} from "@pi-vault/pi-questionnaire/events";
+
+export default function createExtension(pi: ExtensionAPI) {
+  pi.events.on(QUESTIONNAIRE_STATUS_EVENT, (data) => {
+    const status = data as QuestionnaireStatusEventPayload;
+    // Track status.active for this Pi session.
+  });
+}
+```
+
 ## Limits
 
 - 1 to 10 questions per call

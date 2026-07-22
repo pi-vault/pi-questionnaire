@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make a one-question questionnaire submit its answer immediately, enter custom text as soon as `Type something.` receives focus, and tell Herdr that Pi is waiting for user input.
+**Goal:** Make a one-question questionnaire submit its answer immediately, enter custom text as soon as `Type something.` receives focus, and publish its interactive wait status to other Pi extensions.
 
-**Architecture:** Preserve the existing pure interpreter → reducer → UI adapter flow. The reducer owns row topology, wrapped question-row navigation, selections, and notes; the interpreter derives editor effects from the row that receives focus; the UI adapter is the sole completion boundary. `src/index.ts` brackets the actual interactive wait with paired `herdr:blocked` events, requiring no Herdr dependency.
+**Architecture:** Preserve the existing pure interpreter → reducer → UI adapter flow. The reducer owns row topology, wrapped question-row navigation, selections, and notes; the interpreter derives editor effects from the row that receives focus; the UI adapter is the sole completion boundary. `src/index.ts` publishes a producer-owned `pi-vault:questionnaire:status` lifecycle around the actual interactive wait and registers the UI tool as sequential.
 
 **Tech Stack:** TypeScript, Vitest, Biome, `@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`.
 
@@ -18,7 +18,7 @@
 - Question rows wrap: Up from the first row selects the last row; Down from the last row selects the first. Review rows remain clamped.
 - Moving onto `Type something.` immediately opens the existing multiline `Editor`, preloaded with the saved custom answer. Moving away discards unsaved editor text. Escape from custom input cancels the questionnaire.
 - `allowOther` works for multi-select questions too. Their row order is options → Type something. (when allowed) → chat (when allowed) → Next. A custom answer clears checked options; toggling an option after custom text replaces the custom answer.
-- `src/index.ts` emits `pi.events.emit("herdr:blocked", { active: true, label: "Waiting for questionnaire response" })` immediately before `runQuestionnaireUI`, and emits `{ active: false }` from `finally`. Validation and non-TUI early returns emit neither event.
+- A valid TUI questionnaire emits `pi-vault:questionnaire:status` with `{ active: true, label: "Waiting for questionnaire response" }` immediately before `runQuestionnaireUI`, then `{ active: false }` from `finally`. Validation and non-TUI early returns emit neither event; the tool is registered with `executionMode: "sequential"`.
 
 ## File map
 
@@ -26,11 +26,12 @@
 - `src/tui/input.ts` — maps input to state/editor/finalize effects.
 - `src/tui/questionnaire-ui.ts` — reduces actions, runs editors, and resolves `ui.custom` exactly once.
 - `src/tui/render.ts` — hides single-question tab/review chrome and reports accurate key hints.
-- `src/index.ts` — brackets interactive waits with Herdr events.
+- `src/events.ts` — typed public questionnaire-status event contract.
+- `src/index.ts` — sequential tool registration and interactive-wait lifecycle.
 - `tests/tui/state.test.ts`, `tests/tui/input.test.ts`, `tests/tui/render.test.ts` — pure regressions.
 - `tests/tui/questionnaire-ui.test.ts` — adapter completion tests using the existing Pi TUI mocks/patterns; create it if absent.
-- `tests/index.test.ts` — tool-level Herdr lifecycle tests.
-- `README.md`, `CHANGELOG.md` — public behavior description.
+- `tests/index.test.ts` — tool-level status lifecycle tests using a deferred UI promise.
+- `package.json`, `README.md`, `CHANGELOG.md` — public package and behavior description.
 
 ## Phase 1 — Notes before an answer
 
@@ -87,82 +88,72 @@ git add src/tui/input.ts tests/tui/input.test.ts
 git commit -m "feat(tui): allow notes before answering"
 ```
 
-## Phase 2 — Herdr blocked lifecycle
+## Phase 2 — Questionnaire status event
 
-This is independently usable: Herdr sees the agent as blocked for the whole interactive questionnaire lifetime and returns to normal afterwards.
+This is independently usable: any Pi extension can observe a typed questionnaire wait lifecycle without the package naming a specific consumer.
 
-### Task 2: Pair Herdr events around the UI promise
+### Task 2: Publish and emit questionnaire status
 
 **Files:**
 
+- Create: `src/events.ts`
 - Modify: `src/index.ts`
 - Modify: `tests/index.test.ts`
+- Modify: `package.json`
+- Modify: `README.md`
 
-- [ ] **Step 1: Add test doubles that capture `pi.events.emit` and control `ui.custom`.** The extension API fixture must provide `events: { emit: vi.fn() }`; make the UI mock resolve `runQuestionnaireUI` with a non-cancelled `QuestionnaireResult` after its captured `done` callback is called.
-
-- [ ] **Step 2: Add the lifecycle regression.**
+- [ ] **Step 1: Build the deferred UI fixture and failing lifecycle regressions.** Capture the registered tool and `events.emit`; make `ui.custom` return a deferred promise instead of constructing the real TUI. Assert `executionMode: "sequential"`, active status before `ui.custom`, inactive status after cancelled resolution and rejection, and no emissions for invalid or non-TUI calls.
 
 ```ts
-it("marks Herdr blocked only while the questionnaire UI is active", async () => {
-  const { tool, events, finishQuestionnaire } = setupExtension();
-  const pending = tool.execute(
-    "call",
-    validParams,
-    new AbortController().signal,
-    vi.fn(),
-    tuiContext,
-  );
-
-  expect(events.emit).toHaveBeenCalledWith("herdr:blocked", {
-    active: true,
-    label: "Waiting for questionnaire response",
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
   });
+  return { promise, resolve, reject };
+}
 
-  finishQuestionnaire({
-    questions: normalizedQuestions,
-    responses: [],
-    cancelled: true,
-  });
-  await pending;
-
-  expect(events.emit).toHaveBeenLastCalledWith("herdr:blocked", {
-    active: false,
-  });
-  expect(events.emit).toHaveBeenCalledTimes(2);
-});
-
-it("does not emit Herdr events for validation and non-TUI failures", async () => {
-  const { tool, events } = setupExtension();
-  await tool.execute(
-    "call",
-    invalidParams,
-    new AbortController().signal,
-    vi.fn(),
-    tuiContext,
-  );
-  await tool.execute(
-    "call",
-    validParams,
-    new AbortController().signal,
-    vi.fn(),
-    nonTuiContext,
-  );
-  expect(events.emit).not.toHaveBeenCalled();
-});
+function setupExtension() {
+  const registerTool = vi.fn();
+  const emit = vi.fn();
+  createExtension({ registerTool, events: { emit } } as any);
+  return { tool: registerTool.mock.calls[0]![0], emit };
+}
 ```
 
-- [ ] **Step 3: Run the index test and confirm the lifecycle test fails.**
+- [ ] **Step 2: Run the index test and confirm it fails.**
 
 ```bash
 pnpm exec vitest run tests/index.test.ts
 ```
 
-Expected: FAIL because `pi.events.emit` is not called.
+Expected: FAIL because no execution mode or status emissions are registered.
 
-- [ ] **Step 4: Wrap only `runQuestionnaireUI` in `src/index.ts` with this exact lifecycle.**
+- [ ] **Step 3: Add the importable contract and package export.**
 
 ```ts
-pi.events.emit("herdr:blocked", {
+// src/events.ts
+export const QUESTIONNAIRE_STATUS_EVENT =
+  "pi-vault:questionnaire:status" as const;
+
+export type QuestionnaireStatusEventPayload =
+  | { active: true; label: string }
+  | { active: false };
+```
+
+```json
+"exports": {
+  ".": "./src/index.ts",
+  "./events": "./src/events.ts"
+}
+```
+
+- [ ] **Step 4: Add the sequential lifecycle.** Import `QUESTIONNAIRE_STATUS_EVENT`, set `executionMode: "sequential"`, and keep all early returns outside this block:
+
+```ts
+pi.events.emit(QUESTIONNAIRE_STATUS_EVENT, {
   active: true,
   label: "Waiting for questionnaire response",
 });
@@ -173,26 +164,27 @@ try {
     details: uiResult,
   };
 } finally {
-  pi.events.emit("herdr:blocked", { active: false });
+  pi.events.emit(QUESTIONNAIRE_STATUS_EVENT, { active: false });
 }
 ```
 
-Do not move either early return into this `try`: malformed requests and non-TUI calls are not interactive waits.
+Do not add a `try`/`catch` around `emit`: Pi's event bus isolates listener errors.
 
-- [ ] **Step 5: Re-run the index test and type-check.**
+- [ ] **Step 5: Document and verify the public contract.** Add a README integration example importing `QUESTIONNAIRE_STATUS_EVENT` and `QuestionnaireStatusEventPayload` from `@pi-vault/pi-questionnaire/events`. Then run:
 
 ```bash
 pnpm exec vitest run tests/index.test.ts
 pnpm check
+pnpm run pack:dry-run
 ```
 
-Expected: both commands pass.
+Expected: all commands pass and the archive includes `src/events.ts`.
 
 - [ ] **Step 6: Commit the independent phase.**
 
 ```bash
-git add src/index.ts tests/index.test.ts
-git commit -m "feat: report questionnaire waits to Herdr"
+git add package.json src/events.ts src/index.ts tests/index.test.ts README.md
+git commit -m "feat: publish questionnaire wait status"
 ```
 
 ## Phase 3 — Single-question fast path
@@ -606,13 +598,13 @@ Expected: all commands pass. If `render-question.ts` needs no code change after 
 
 ## Final manual acceptance
 
-- [ ] In Pi with Herdr installed, invoke a questionnaire and confirm Herdr changes to blocked while the UI is open and returns to normal after submit or Escape.
+- [ ] In Pi with an extension listening to `pi-vault:questionnaire:status`, invoke a questionnaire and confirm it receives active while the UI is open and inactive after submit, Escape, or UI failure.
 - [ ] Ask one single-select question; select an option, custom text, and chat in separate runs. Each should return directly with no tabs or Review screen.
 - [ ] Ask one multi-select question; toggle choices then use Next, and separately submit a custom answer. Confirm neither result includes both options and custom text.
 - [ ] Ask multiple questions; verify Tab saves notes before answers, row navigation wraps, Review still appears, and Review Up/Down stays clamped.
 
 ## Plan self-review
 
-- **Spec coverage:** Phases 3–5 cover immediate single-question submission and focus-driven custom input; Phase 2 covers the Herdr wait status; Phase 1 preserves pre-answer notes. Multi-select custom support is explicitly included because `allowOther` already defaults to true.
+- **Spec coverage:** Phases 3–5 cover immediate single-question submission and focus-driven custom input; Phase 2 publishes the typed wait-status contract and prevents overlapping interactive tool calls; Phase 1 preserves pre-answer notes. Multi-select custom support is explicitly included because `allowOther` already defaults to true.
 - **No placeholders:** Every behavior-changing step names its exact source/test files, expected assertions, and verification command. The adapter harness deliberately asserts captured `done` calls rather than timing-sensitive pending promises.
 - **Type consistency:** `Action`, `Effect`, `QuestionnaireState`, `rowLayout`, `visibleRowCount`, `cursorTarget`, `buildResult`, and `runQuestionnaireUI` are existing project interfaces; the only new helper named by this plan is `wrapIndex` plus private `syncMultiAnswer` and local `moveEffects`/`applyAction`.
