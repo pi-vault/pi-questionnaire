@@ -67,9 +67,9 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
     return [{ type: "finalize", cancelled: true }];
   }
 
-  // Tab — open notes editor (only if question has a selection)
+  // Tab — open notes editor
   if (matchesKey(data, Key.tab)) {
-    if (q && state.answers.has(q.id)) {
+    if (q) {
       return [
         dispatch({ type: "enterNotes", questionId: q.id }),
         { type: "set-notes-editor-text", text: state.notes.get(q.id) ?? "" },

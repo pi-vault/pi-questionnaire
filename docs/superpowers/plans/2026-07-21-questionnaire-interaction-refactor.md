@@ -42,63 +42,48 @@ This is independently usable: users can record context before deciding, and the 
 
 - Modify: `src/tui/input.ts`
 - Modify: `tests/tui/input.test.ts`
-- Modify: `tests/tui/state.test.ts`
 
-- [ ] **Step 1: Add the failing input test beside the existing Tab/notes tests.**
-
-```ts
-it("opens notes for an unanswered question", () => {
-  expect(interpret("\t", ctx(questions))).toEqual([
-    { type: "dispatch", action: { type: "enterNotes", questionId: "scope" } },
-    { type: "set-notes-editor-text", text: "" },
-  ]);
-});
-```
-
-- [ ] **Step 2: Add the result regression beside existing `buildResult` tests.**
+- [ ] **Step 1: Replace the existing `Tab on unanswered question returns empty effects` regression with this parameterized positive case.**
 
 ```ts
-it("attaches a note saved before the answer", () => {
-  const state = initState(questions);
-  state.notes.set("scope", "Keep this small");
-  state.answers.set("scope", {
-    kind: "option",
-    value: "small",
-    label: "Small",
-  });
-
-  expect(buildResult(state, questions, false).responses).toEqual([
-    {
-      questionId: "scope",
-      selection: { kind: "option", value: "small", label: "Small" },
-      notes: "Keep this small",
-    },
-  ]);
-});
+it.each([0, 1])(
+  "Tab opens notes for unanswered question tab %i",
+  (activeTab) => {
+    const question = questions[activeTab]!;
+    expect(interpret("\t", ctx(questions, { activeTab }))).toEqual([
+      {
+        type: "dispatch",
+        action: { type: "enterNotes", questionId: question.id },
+      },
+      { type: "set-notes-editor-text", text: "" },
+    ]);
+  },
+);
 ```
 
-- [ ] **Step 3: Run the focused tests and confirm the Tab test fails.**
+- [ ] **Step 2: Run the focused test and confirm both cases fail.**
 
 ```bash
-pnpm exec vitest run tests/tui/input.test.ts tests/tui/state.test.ts
+pnpm exec vitest run tests/tui/input.test.ts
 ```
 
-Expected: `opens notes for an unanswered question` fails because `interpret` currently checks `state.answers.has(q.id)`.
+Expected: both parameterized cases fail because `interpret` currently checks `state.answers.has(q.id)`.
 
-- [ ] **Step 4: Change the Tab guard in `src/tui/input.ts` from `if (q && state.answers.has(q.id))` to `if (q)`.** Keep the existing `enterNotes` and preload effects unchanged; `buildResult` already attaches a note to any eventual answer.
+- [ ] **Step 3: Change the Tab guard in `src/tui/input.ts` from `if (q && state.answers.has(q.id))` to `if (q)`.** Keep the existing `enterNotes` and preload effects unchanged. Do not change `state.ts`, `buildResult`, rendering, public types, or the Tab shortcut: typing and notes modes run before this branch, and Review has no current question.
 
-- [ ] **Step 5: Re-run the focused tests.**
+- [ ] **Step 4: Re-run the focused test, then the complete project check.**
 
 ```bash
-pnpm exec vitest run tests/tui/input.test.ts tests/tui/state.test.ts
+pnpm exec vitest run tests/tui/input.test.ts
+pnpm check
 ```
 
-Expected: PASS.
+Expected: both commands pass; existing answered-note preload and Review no-op regressions remain green.
 
-- [ ] **Step 6: Commit the independent phase.**
+- [ ] **Step 5: Commit the independent phase.**
 
 ```bash
-git add src/tui/input.ts tests/tui/input.test.ts tests/tui/state.test.ts
+git add src/tui/input.ts tests/tui/input.test.ts
 git commit -m "feat(tui): allow notes before answering"
 ```
 
