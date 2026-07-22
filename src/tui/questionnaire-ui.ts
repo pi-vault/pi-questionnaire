@@ -20,7 +20,6 @@ export async function runQuestionnaireUI(
     }
 
     function applyAction(action: Action): boolean {
-      if (completed) return true;
       state = reduce(state, action, questions);
 
       if (
@@ -29,9 +28,8 @@ export async function runQuestionnaireUI(
         allAnswered(state, questions)
       ) {
         finish(false);
-        return true;
       }
-      return false;
+      return completed;
     }
 
     const editorTheme: EditorTheme = {
@@ -64,14 +62,11 @@ export async function runQuestionnaireUI(
 
     notesEditor.onSubmit = (value) => {
       if (state.inputMode === "notes" && state.editingQuestionId) {
-        if (
-          applyAction({
-            type: "submitNotes",
-            questionId: state.editingQuestionId,
-            value: value.trim(),
-          })
-        )
-          return;
+        applyAction({
+          type: "submitNotes",
+          questionId: state.editingQuestionId,
+          value: value.trim(),
+        });
         notesEditor.setText("");
         tui.requestRender();
       }
@@ -99,7 +94,6 @@ export async function runQuestionnaireUI(
             break;
           case "forward-to-notes-editor":
             notesEditor.handleInput(data);
-            if (completed) return;
             break;
           case "set-editor-text":
             editor.setText(effect.text);
