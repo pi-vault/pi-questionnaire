@@ -96,6 +96,12 @@ function dispatched(effects: Effect[]) {
 }
 
 describe("interpret", () => {
+  it("does not create tab-navigation effects for one question", () => {
+    const one = questions.slice(0, 1);
+    expect(interpret("\x1b[C", ctx(one))).toEqual([]);
+    expect(interpret("\x1b[D", ctx(one))).toEqual([]);
+  });
+
   it("Esc returns finalize cancelled", () => {
     const effects = interpret("\x1b", ctx(questions));
     expect(effects).toEqual([{ type: "finalize", cancelled: true }]);

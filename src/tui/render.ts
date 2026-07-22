@@ -21,22 +21,24 @@ export function renderQuestionnaire(
 ): string[] {
   const lines: string[] = [];
   const renderWidth = Math.max(1, width);
+  const isMultiQuestion = questions.length > 1;
   const reviewTabIndex = questions.length;
   const q = currentQuestion(state, questions);
 
   lines.push(theme.fg("accent", "\u2500".repeat(renderWidth)));
 
-  // Tab bar
-  const notedIds = new Set(state.notes.keys());
-  lines.push(
-    ...renderTabBar(
-      questions,
-      state.activeTab,
-      answeredIds(state),
-      notedIds,
-      theme,
-    ),
-  );
+  if (isMultiQuestion) {
+    const notedIds = new Set(state.notes.keys());
+    lines.push(
+      ...renderTabBar(
+        questions,
+        state.activeTab,
+        answeredIds(state),
+        notedIds,
+        theme,
+      ),
+    );
+  }
 
   // Content
   if (state.activeTab === reviewTabIndex) {
@@ -51,6 +53,9 @@ export function renderQuestionnaire(
       ),
     );
   } else if (q) {
+    if (!isMultiQuestion) {
+      lines.push(theme.bg("selectedBg", theme.fg("text", ` ${q.header} `)), "");
+    }
     lines.push(
       ...renderQuestion(
         {
@@ -88,10 +93,10 @@ export function renderQuestionnaire(
     hint = "Left/Right tabs | Up/Down select | Enter submit | Esc cancel";
   } else if (q?.multiSelect) {
     hint =
-      "Left/Right tabs | Up/Down select | Space toggle | Tab notes | Esc cancel";
+      `${isMultiQuestion ? "Left/Right tabs | " : ""}Up/Down select | Space toggle | Tab notes | Esc cancel`;
   } else {
     hint =
-      "Left/Right tabs | Up/Down select | Enter confirm | Tab notes | Esc cancel";
+      `${isMultiQuestion ? "Left/Right tabs | " : ""}Up/Down select | Enter confirm | Tab notes | Esc cancel`;
   }
   pushWrapped(lines, theme.fg("dim", hint), renderWidth);
 

@@ -34,6 +34,15 @@ const questions: NormalizedQuestion[] = [
 ];
 
 describe("renderQuestionnaire", () => {
+  it("hides tabs and review chrome but keeps the single-question header", () => {
+    const one = questions.slice(0, 1);
+    const text = renderQuestionnaire(initState(one), one, [], [], noopTheme, 80).join("\n");
+
+    expect(text).toContain("Scope");
+    expect(text).not.toContain("Review");
+    expect(text).not.toContain("Left/Right tabs");
+  });
+
   it("renders tab bar and question content for single-choice", () => {
     const state = initState(questions);
     const lines = renderQuestionnaire(state, questions, [], [], noopTheme, 80);
