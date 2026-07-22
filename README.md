@@ -131,6 +131,7 @@ The extension emits a shared Pi event only for a valid TUI questionnaire wait:
 You can listen for it from another extension:
 
 ```ts
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   QUESTIONNAIRE_STATUS_EVENT,
   type QuestionnaireStatusEventPayload,
