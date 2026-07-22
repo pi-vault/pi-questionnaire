@@ -1,7 +1,7 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Editor, type EditorTheme } from "@earendil-works/pi-tui";
 import type { NormalizedQuestion, QuestionnaireResult } from "../core/types.ts";
-import { initState, reduce, buildResult } from "./state.ts";
+import { type Action, allAnswered, buildResult, initState, reduce } from "./state.ts";
 import { interpret } from "./input.ts";
 import { renderQuestionnaire } from "./render.ts";
 
@@ -11,6 +11,28 @@ export async function runQuestionnaireUI(
 ): Promise<QuestionnaireResult> {
   return ctx.ui.custom<QuestionnaireResult>((tui, theme, _kb, done) => {
     let state = initState(questions);
+    let completed = false;
+
+    function finish(cancelled: boolean): void {
+      if (completed) return;
+      completed = true;
+      done(buildResult(state, questions, cancelled));
+    }
+
+    function applyAction(action: Action): boolean {
+      if (completed) return true;
+      state = reduce(state, action, questions);
+
+      if (
+        questions.length === 1 &&
+        state.activeTab === questions.length &&
+        allAnswered(state, questions)
+      ) {
+        finish(false);
+        return true;
+      }
+      return false;
+    }
 
     const editorTheme: EditorTheme = {
       borderColor: (s) => theme.fg("accent", s),
@@ -27,15 +49,14 @@ export async function runQuestionnaireUI(
 
     editor.onSubmit = (value) => {
       if (state.inputMode === "typing" && state.editingQuestionId) {
-        state = reduce(
-          state,
-          {
+        if (
+          applyAction({
             type: "submitTyping",
             questionId: state.editingQuestionId,
             value: value.trim(),
-          },
-          questions,
-        );
+          })
+        )
+          return;
         editor.setText("");
         tui.requestRender();
       }
@@ -43,21 +64,21 @@ export async function runQuestionnaireUI(
 
     notesEditor.onSubmit = (value) => {
       if (state.inputMode === "notes" && state.editingQuestionId) {
-        state = reduce(
-          state,
-          {
+        if (
+          applyAction({
             type: "submitNotes",
             questionId: state.editingQuestionId,
             value: value.trim(),
-          },
-          questions,
-        );
+          })
+        )
+          return;
         notesEditor.setText("");
         tui.requestRender();
       }
     };
 
     function handleInput(data: string) {
+      if (completed) return;
       const effects = interpret(data, {
         state,
         questions,
@@ -67,16 +88,18 @@ export async function runQuestionnaireUI(
       for (const effect of effects) {
         switch (effect.type) {
           case "dispatch":
-            state = reduce(state, effect.action, questions);
+            if (applyAction(effect.action)) return;
             break;
           case "finalize":
-            done(buildResult(state, questions, effect.cancelled));
+            finish(effect.cancelled);
             return;
           case "forward-to-editor":
             editor.handleInput(data);
+            if (completed) return;
             break;
           case "forward-to-notes-editor":
             notesEditor.handleInput(data);
+            if (completed) return;
             break;
           case "set-editor-text":
             editor.setText(effect.text);
