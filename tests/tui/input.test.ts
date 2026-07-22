@@ -416,9 +416,12 @@ describe("interpret", () => {
     ]);
   });
 
-  it("Tab on unanswered question returns empty effects", () => {
-    const effects = interpret("\t", ctx(questions));
-    expect(effects).toEqual([]);
+  it.each([0, 1])("Tab opens notes for unanswered question tab %i", (activeTab) => {
+    const question = questions[activeTab]!;
+    expect(interpret("\t", ctx(questions, { activeTab }))).toEqual([
+      { type: "dispatch", action: { type: "enterNotes", questionId: question.id } },
+      { type: "set-notes-editor-text", text: "" },
+    ]);
   });
 
   it("Tab on review tab returns empty effects", () => {
