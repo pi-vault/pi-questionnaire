@@ -28,7 +28,7 @@ All notable changes to `@pi-vault/pi-questionnaire` are documented in this file.
 - Support for `single-choice` and `multi-choice` question types.
 - An interactive TUI with per-question tabs and a final review screen before submission.
 - Recommended-option support for single-choice and multi-choice questions.
-- `Type something.` custom-answer handling for single-choice questions.
+- `Type something.` custom-answer handling for single- and multi-select questions.
 - `Chat about this` answer handling for questions that need discussion instead of a direct selection.
 - Optional per-question notes that let users add context without changing the main answer.
 - Agent-facing summary formatting for selected options, custom answers, chat handoff, and notes.

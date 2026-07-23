@@ -67,6 +67,15 @@ describe("formatModelLine", () => {
     );
   });
 
+  it("formats an empty multi-select as no input", () => {
+    const response: QuestionResponse = {
+      questionId: "features",
+      selection: { kind: "options", selected: [] },
+    };
+    expect(formatModelLine(multiQ, response)).toBe("Features: user selected: (no input)");
+    expect(formatAnswerForRender(multiQ, response.selection)).toBe("(no input)");
+  });
+
   it("formats custom text", () => {
     const response: QuestionResponse = {
       questionId: "scope",

@@ -142,6 +142,47 @@ describe("runQuestionnaireUI", () => {
     });
   });
 
+  it("resolves a one-question multi custom answer immediately", async () => {
+    const q = { ...multi, allowOther: true };
+    const harness = driveCustom([q]);
+    input(harness, "\x1b[B");
+    input(harness, "\x1b[B");
+    for (const character of "Custom") input(harness, character);
+    input(harness, "\r");
+    await expect(harness.result).resolves.toMatchObject({
+      cancelled: false,
+      responses: [{ questionId: q.id, selection: { kind: "custom", value: "Custom" } }],
+    });
+  });
+
+  it("resolves a recommended one-question multi answer after Next", async () => {
+    const q = { ...multi, recommendation: "small" };
+    const harness = driveCustom([q]);
+    input(harness, "\x1b[B");
+    input(harness, "\x1b[B");
+    input(harness, "\r");
+    await expect(harness.result).resolves.toMatchObject({
+      cancelled: false,
+      responses: [
+        {
+          questionId: q.id,
+          selection: { kind: "options", selected: [{ value: "small", label: "Small" }] },
+        },
+      ],
+    });
+  });
+
+  it("resolves an explicit empty one-question multi answer after Next", async () => {
+    const harness = driveCustom([multi]);
+    input(harness, "\x1b[B");
+    input(harness, "\x1b[B");
+    input(harness, "\r");
+    await expect(harness.result).resolves.toMatchObject({
+      cancelled: false,
+      responses: [{ questionId: multi.id, selection: { kind: "options", selected: [] } }],
+    });
+  });
+
   it("does not resolve after answering the first of two questions", async () => {
     const harness = driveCustom([single, multi]);
 
