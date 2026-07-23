@@ -328,7 +328,11 @@ Expected: Vitest passes before committing.
 
 This is independently usable: custom input behaves like a focused row rather than a separate step, while normal question navigation becomes cyclic.
 
-### Task 4: Put row topology and wrapping in the reducer
+> **Phase 4 authority:** Follow `docs/superpowers/plans/2026-07-21-questionnaire-interaction-refactor-phase-4-focus-custom-input.md` for the implementation. It supersedes the older aggregate steps below and explicitly replaces contradictory state, input, render, and adapter regressions.
+
+### Task 4: Put row topology and wrapping in the reducer (superseded)
+
+Do not execute the historical checkbox steps in this aggregate section. The dedicated Phase 4 plan above is the decision-complete replacement and includes the required adapter regressions and verification.
 
 **Files:**
 
@@ -337,6 +341,8 @@ This is independently usable: custom input behaves like a focused row rather tha
 - Modify: `src/tui/render.ts`
 - Modify: `tests/tui/state.test.ts`
 - Modify: `tests/tui/input.test.ts`
+- Modify: `tests/tui/render.test.ts`
+- Modify: `tests/tui/questionnaire-ui.test.ts`
 
 - [ ] **Step 1: Add state tests for wrapping question rows and clamped review rows.**
 
