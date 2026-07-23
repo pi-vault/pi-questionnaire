@@ -86,7 +86,7 @@ export function renderQuestionnaire(
   lines.push("");
   let hint: string;
   if (state.inputMode === "typing") {
-    hint = "Enter submit | Esc cancel | Up/Down exit";
+    hint = "Enter submit | Esc cancel | Up/Down move";
   } else if (state.inputMode === "notes") {
     hint = "Enter save | Up/Down save & exit | Esc discard";
   } else if (state.activeTab === reviewTabIndex) {

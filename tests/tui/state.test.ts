@@ -344,10 +344,22 @@ describe("reduce", () => {
     expect(next.optionCursor).toBe(1);
   });
 
-  it("moveCursor clamps at bounds", () => {
-    const state = initState(questions);
-    const next = reduce(state, { type: "moveCursor", direction: "up" }, questions);
-    expect(next.optionCursor).toBe(0);
+  it("wraps question rows", () => {
+    const questions = [singleWithOther];
+    const rowCount = visibleRowCount(singleWithOther);
+
+    expect(
+      reduce(initState(questions), { type: "moveCursor", direction: "up" }, questions)
+        .optionCursor,
+    ).toBe(rowCount - 1);
+
+    expect(
+      reduce(
+        { ...initState(questions), optionCursor: rowCount - 1 },
+        { type: "moveCursor", direction: "down" },
+        questions,
+      ).optionCursor,
+    ).toBe(0);
   });
 
   it("moveCursor on review tab moves reviewCursor", () => {
@@ -401,13 +413,6 @@ describe("reduce", () => {
     const next = reduce(state, { type: "resetCursors" }, questions);
     expect(next.optionCursor).toBe(0);
     expect(next.reviewCursor).toBe(0);
-  });
-
-  it("moveCursor down clamps at last option", () => {
-    const state = { ...initState(questions), optionCursor: 1 };
-    // scope has 2 options, so max index is 1
-    const next = reduce(state, { type: "moveCursor", direction: "down" }, questions);
-    expect(next.optionCursor).toBe(1);
   });
 
   it("moveCursor on review tab clamps reviewCursor at 0", () => {

@@ -38,6 +38,10 @@ export function visibleRowCount(question: NormalizedQuestion): number {
   return rowLayout(question).length;
 }
 
+export function wrapIndex(index: number, length: number): number {
+  return ((index % length) + length) % length;
+}
+
 export function cursorTarget(
   question: NormalizedQuestion,
   cursor: number,
@@ -188,12 +192,11 @@ export function reduce(
         }
         return next;
       }
-      const rowCount = visibleRowCount(q);
-      if (action.direction === "up") {
-        next.optionCursor = Math.max(0, next.optionCursor - 1);
-      } else {
-        next.optionCursor = Math.min(rowCount - 1, next.optionCursor + 1);
-      }
+      const delta = action.direction === "up" ? -1 : 1;
+      next.optionCursor = wrapIndex(
+        next.optionCursor + delta,
+        visibleRowCount(q),
+      );
       return next;
     }
     case "selectOption": {

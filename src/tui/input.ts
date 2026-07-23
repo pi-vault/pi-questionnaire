@@ -6,6 +6,8 @@ import {
   allAnswered,
   currentQuestion,
   cursorTarget,
+  visibleRowCount,
+  wrapIndex,
 } from "./state.ts";
 
 export interface InputContext {
@@ -26,6 +28,27 @@ function dispatch(a: Action): Effect {
   return { type: "dispatch", action: a };
 }
 
+function moveEffects(
+  direction: "up" | "down",
+  question: NormalizedQuestion,
+  state: QuestionnaireState,
+): Effect[] {
+  const delta = direction === "up" ? -1 : 1;
+  const cursor = wrapIndex(
+    state.optionCursor + delta,
+    visibleRowCount(question),
+  );
+  const effects: Effect[] = [dispatch({ type: "moveCursor", direction })];
+
+  if (cursorTarget(question, cursor).kind === "other") {
+    effects.push(
+      dispatch({ type: "enterTyping", questionId: question.id }),
+      { type: "set-editor-text", text: state.customText.get(question.id) ?? "" },
+    );
+  }
+  return effects;
+}
+
 export function interpret(data: string, ctx: InputContext): Effect[] {
   const { state, questions } = ctx;
   const isMultiQuestion = questions.length > 1;
@@ -35,8 +58,17 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
 
   // Typing mode
   if (state.inputMode === "typing") {
-    if (matchesKey(data, Key.escape) || matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
-      return [dispatch({ type: "cancelTyping" }), { type: "set-editor-text", text: "" }];
+    if (matchesKey(data, Key.escape)) {
+      return [{ type: "finalize", cancelled: true }];
+    }
+    if (matchesKey(data, Key.up) || matchesKey(data, Key.down)) {
+      if (!q) return [];
+      const direction = matchesKey(data, Key.up) ? "up" : "down";
+      return [
+        dispatch({ type: "cancelTyping" }),
+        ...moveEffects(direction, q, state),
+        { type: "set-editor-text", text: "" },
+      ];
     }
     return [{ type: "forward-to-editor" }];
   }
@@ -115,10 +147,10 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
   // Single-select
   if (!q.multiSelect) {
     if (matchesKey(data, Key.up)) {
-      return [dispatch({ type: "moveCursor", direction: "up" })];
+      return moveEffects("up", q, state);
     }
     if (matchesKey(data, Key.down)) {
-      return [dispatch({ type: "moveCursor", direction: "down" })];
+      return moveEffects("down", q, state);
     }
     if (matchesKey(data, Key.enter) || matchesKey(data, Key.space)) {
       const target = cursorTarget(q, state.optionCursor);
@@ -146,10 +178,10 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
 
   // Multi-choice
   if (matchesKey(data, Key.up)) {
-    return [dispatch({ type: "moveCursor", direction: "up" })];
+    return moveEffects("up", q, state);
   }
   if (matchesKey(data, Key.down)) {
-    return [dispatch({ type: "moveCursor", direction: "down" })];
+    return moveEffects("down", q, state);
   }
   if (matchesKey(data, Key.space) || matchesKey(data, Key.enter)) {
     const target = cursorTarget(q, state.optionCursor);
