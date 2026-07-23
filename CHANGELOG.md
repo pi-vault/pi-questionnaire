@@ -2,11 +2,16 @@
 
 All notable changes to `@pi-vault/pi-questionnaire` are documented in this file.
 
-## Unreleased
+## 0.2.1 - 2026-07-23
 
 ### Added
 
-- `Type something.` custom-answer handling for multi-select questions, with custom answers replacing checked options.
+- `Type something.` custom-answer handling for multi-select questions; a custom answer replaces any checked options.
+- Custom answer row exposed in the multi-select question layout.
+
+### Fixed
+
+- Custom-typed text is now cleared when the user switches to the `Chat about this` sentinel.
 
 ## 0.2.0 - 2026-07-08
 

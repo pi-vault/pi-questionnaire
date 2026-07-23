@@ -7,98 +7,47 @@
 
 ## Description
 
-Add a `questionnaire` tool to Pi so an agent can ask a few structured questions in one focused interaction.
-
-Use it when the agent needs decisions, preferences, or confirmation before it keeps going.
+When a Pi agent needs a decision before it can keep going, it calls this tool instead of guessing. You answer a few focused questions in an in-terminal UI; the agent proceeds with your answers in hand.
 
 ## Install
+
+Install or upgrade the extension:
 
 ```bash
 pi install npm:@pi-vault/pi-questionnaire
 ```
 
-Then reload Pi:
+Reload Pi after installing or upgrading:
 
 ```text
 /reload
 ```
 
-## When to use it
+## How it works from your side
 
-Use `questionnaire` when you want to:
+1. The agent asks itself whether it has enough to proceed. If not, it builds a small set of focused questions and calls the questionnaire tool.
+2. Pi switches to a TUI questionnaire view: one tab per question, a recommended option marked where the agent has one, and a final review screen before the answers are sent.
+3. You answer. The agent resumes with your answers as a compact summary it can act on.
 
-- narrow scope before implementation
-- choose between a few approaches
-- collect rollout or release preferences
-- confirm priorities before the agent starts work
-- batch several related decisions into one prompt
+You do not need to call anything. If you want the agent to skip clarifying and just keep going, ignore the question view and tell it in chat.
 
-If the user is already working through the problem in free-form, normal chat is usually better.
+## What the questions look like
 
-## Basic example
+Each question is a tab with its `header` as the label and its `prompt` as the body. The options sit below as a numbered list. A recommended option, when one exists, is marked.
 
-```ts
-questionnaire({
-  questions: [
-    {
-      id: "scope",
-      header: "Scope",
-      prompt: "Which scope should we ship first?",
-      options: [
-        {
-          value: "small",
-          label: "Small",
-          description: "Minimal release scope",
-        },
-        { value: "full", label: "Full", description: "Broader first release" },
-      ],
-      recommendation: "small",
-    },
-    {
-      id: "checks",
-      header: "Checks",
-      prompt: "Which release checks should we run?",
-      options: [{ label: "Lint" }, { label: "Typecheck" }, { label: "Tests" }],
-      multiSelect: true,
-      recommendation: "Lint",
-    },
-  ],
-});
-```
+After every option there may be three extra rows, depending on the question:
 
-## What you can ask
+- **`Type something.`** — pick when none of the listed options fit. Type your answer and submit. On a multi-select question, a custom answer replaces every option you'd checked.
+- **`Chat about this`** — pick when you'd rather discuss than pick. The agent switches to conversation for that question instead of expecting a value.
+- **`Next`** — present on multi-select questions. Confirms whatever you've checked and moves you on.
 
-Each question has:
+A **`note`** row is always available per question. Notes don't change your answer; they ride alongside it as extra context.
 
-- `id` — unique key
-- `header` — short label for tabs and summaries
-- `prompt` — the full question
-- `options` — 2 to 12 choices
+You can answer 1 to 10 questions in a single questionnaire. Each question gives you 2 to 12 options to choose from.
 
-Optional fields:
+## What the agent sees
 
-- `multiSelect: true` — allow more than one choice
-- `recommendation` — mark the suggested option
-- `allowOther` — append `Type something.` to single- and multi-select questions; a multi-select custom answer replaces checked options
-- `allowChat` — let the user say they want to discuss it instead
-
-If an option omits `value`, the label is used as the value.
-
-## What the user can do
-
-For each question, the user can:
-
-- pick one option
-- pick several options when `multiSelect` is enabled
-- type a custom answer
-- choose `Chat about this`
-- add a note with extra context
-
-## What the agent gets back
-
-The tool returns a compact text summary the agent can use right away.
-
-Example:
+A compact text summary, one line per question, that it can act on immediately:
 
 ```text
 Scope: user selected: 1. Small
@@ -106,14 +55,14 @@ Scope note: "keep the first release tight"
 Checks: user selected: 1. Lint, 2. Typecheck, 3. Tests
 ```
 
-Other possible results:
+Other shapes it can receive:
 
 ```text
 Scope: user wrote: "Ship only the core questionnaire flow"
 Features: user wants to discuss this question
 ```
 
-If the user cancels, the tool returns:
+If you cancel mid-questionnaire:
 
 ```text
 User cancelled the questionnaire
@@ -121,14 +70,21 @@ User cancelled the questionnaire
 
 ## Integration events
 
-The extension emits a shared Pi event only for a valid TUI questionnaire wait:
+The extension emits a shared Pi event around every questionnaire wait, available to any extension listening on this Pi session:
 
 - `pi-vault:questionnaire:status`
 
-`{ active: true, label }` is emitted immediately before waiting for the interactive questionnaire in TUI mode.
-`{ active: false }` is emitted when that wait settles, including cancellation or UI failure.
+Payload:
 
-You can listen for it from another extension:
+```ts
+type QuestionnaireStatusEventPayload =
+  | { active: true; label: string }
+  | { active: false };
+```
+
+`{ active: true, label }` is emitted immediately before the interactive TUI wait. `{ active: false }` is emitted when the wait settles, including on cancellation or UI failure.
+
+Listener example:
 
 ```ts
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -145,10 +101,22 @@ export default function createExtension(pi: ExtensionAPI) {
 }
 ```
 
-## Limits
+## Schema reference (for the agent)
 
-- 1 to 10 questions per call
-- 2 to 12 options per question
+The table below describes the shape the agent sends. It is here for completeness; you do not write or pass these arguments yourself.
+
+| Field            | Required | Notes                                                                                                      |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `id`             | yes      | Unique key per call, returned in the summary.                                                              |
+| `header`         | yes      | Short tab label.                                                                                           |
+| `prompt`         | yes      | The full question.                                                                                         |
+| `options`        | yes      | 2–12 choices. Each has `label` (required), optional `value` (defaults to `label`), optional `description`. |
+| `multiSelect`    | no       | Allow multiple selections (default `false`).                                                               |
+| `recommendation` | no       | Value of the recommended option.                                                                           |
+| `allowOther`     | no       | Append `Type something.` row (default `true`).                                                             |
+| `allowChat`      | no       | Append `Chat about this` row (default `true`).                                                             |
+
+Limits: 1 to 10 questions per call, 2 to 12 options per question. If `option.value` is omitted, the option's `label` is used as its value.
 
 ## Development
 
@@ -165,4 +133,4 @@ See [`CHANGELOG.md`](CHANGELOG.md) for release notes.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](LICENSE).

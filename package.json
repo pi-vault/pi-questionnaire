@@ -1,8 +1,8 @@
 {
   "name": "@pi-vault/pi-questionnaire",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
-  "description": "Pi extension for collecting structured user decisions in one interactive questionnaire",
+  "description": "Pi extension that asks structured single or multi-select questions in one interactive questionnaire.",
   "author": "Lanh Hoang <lanhhoang@users.noreply.github.com>",
   "license": "MIT",
   "homepage": "https://github.com/pi-vault/pi-questionnaire#readme",
@@ -54,13 +54,13 @@
     "README.md"
   ],
   "devDependencies": {
-    "@biomejs/biome": "^2.5.2",
-    "@earendil-works/pi-coding-agent": "^0.80.3",
-    "@earendil-works/pi-tui": "^0.80.3",
+    "@biomejs/biome": "^2.5.5",
+    "@earendil-works/pi-coding-agent": "^0.80.10",
+    "@earendil-works/pi-tui": "^0.80.10",
     "@types/node": "^26.1.0",
     "typebox": "^1.3.3",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
