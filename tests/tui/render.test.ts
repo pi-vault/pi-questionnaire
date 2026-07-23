@@ -80,7 +80,7 @@ describe("renderQuestionnaire", () => {
     const text = lines.join("\n");
     expect(text).toContain("Enter submit");
     expect(text).toContain("Esc cancel");
-    expect(text).toContain("Up/Down exit");
+    expect(text).toContain("Up/Down move");
   });
 
   it("shows separator lines at top and bottom", () => {

@@ -150,6 +150,24 @@ describe("interpret", () => {
     expect(dispatched(effects)).toEqual([{ type: "moveCursor", direction: "down" }]);
   });
 
+  it("enters typing when navigation reaches other and preloads saved text", () => {
+    const state = { ...initState(questionsWithOther), optionCursor: 1 };
+    state.customText.set("scope", "existing text");
+    expect(interpret("\x1b[B", { state, questions: questionsWithOther, notesEditorText: "" })).toEqual([
+      { type: "dispatch", action: { type: "moveCursor", direction: "down" } },
+      { type: "dispatch", action: { type: "enterTyping", questionId: "scope" } },
+      { type: "set-editor-text", text: "existing text" },
+    ]);
+  });
+
+  it("enters typing when Up wraps onto other", () => {
+    expect(interpret("\x1b[A", ctx(questionsWithOther))).toEqual([
+      { type: "dispatch", action: { type: "moveCursor", direction: "up" } },
+      { type: "dispatch", action: { type: "enterTyping", questionId: "scope" } },
+      { type: "set-editor-text", text: "" },
+    ]);
+  });
+
   it("Enter on single-choice returns selectOption with correct values", () => {
     const effects = interpret("\r", ctx(questions));
     const actions = dispatched(effects);
@@ -240,7 +258,23 @@ describe("interpret", () => {
     expect(effects).toEqual([]);
   });
 
-  it("Esc in typing mode returns cancelTyping + set-editor-text empty", () => {
+  it("leaves typing, wraps to the first row, and clears the draft", () => {
+    const effects = interpret(
+      "\x1b[B",
+      ctx(questionsWithOther, {
+        optionCursor: 2,
+        inputMode: "typing",
+        editingQuestionId: "scope",
+      }),
+    );
+    expect(effects).toEqual([
+      { type: "dispatch", action: { type: "cancelTyping" } },
+      { type: "dispatch", action: { type: "moveCursor", direction: "down" } },
+      { type: "set-editor-text", text: "" },
+    ]);
+  });
+
+  it("cancels the questionnaire from custom input", () => {
     const effects = interpret(
       "\x1b",
       ctx(questionsWithOther, {
@@ -248,24 +282,7 @@ describe("interpret", () => {
         editingQuestionId: "scope",
       }),
     );
-    expect(effects).toEqual([
-      { type: "dispatch", action: { type: "cancelTyping" } },
-      { type: "set-editor-text", text: "" },
-    ]);
-  });
-
-  it("Up in typing mode returns cancelTyping + set-editor-text empty", () => {
-    const effects = interpret(
-      "\x1b[A",
-      ctx(questionsWithOther, {
-        inputMode: "typing",
-        editingQuestionId: "scope",
-      }),
-    );
-    expect(effects).toEqual([
-      { type: "dispatch", action: { type: "cancelTyping" } },
-      { type: "set-editor-text", text: "" },
-    ]);
+    expect(effects).toEqual([{ type: "finalize", cancelled: true }]);
   });
 
   it("forwards Enter to editor in typing mode", () => {

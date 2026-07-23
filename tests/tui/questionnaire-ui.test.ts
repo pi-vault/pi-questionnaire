@@ -105,7 +105,6 @@ describe("runQuestionnaireUI", () => {
 
     input(harness, "\x1b[B");
     input(harness, "\x1b[B");
-    input(harness, "\r");
     for (const character of "Custom") input(harness, character);
     input(harness, "\r");
 
@@ -120,7 +119,6 @@ describe("runQuestionnaireUI", () => {
 
     input(harness, "\x1b[B");
     input(harness, "\x1b[B");
-    input(harness, "\r");
     input(harness, " ");
     input(harness, "\r");
 
