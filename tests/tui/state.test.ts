@@ -99,6 +99,20 @@ const multiWithChat: NormalizedQuestion = {
   allowChat: true,
 };
 
+const multiWithOther: NormalizedQuestion = {
+  multiSelect: true,
+  id: "features-other",
+  header: "Features",
+  prompt: "Pick features",
+  options: [
+    { value: "auth", label: "Auth" },
+    { value: "log", label: "Logging" },
+  ],
+  recommendation: "auth",
+  allowOther: true,
+  allowChat: true,
+};
+
 // Questions used for selectChat / confirmMulti reducer tests
 const questionsWithChat: NormalizedQuestion[] = [
   {
@@ -180,6 +194,16 @@ describe("rowLayout", () => {
     expect(slots).toEqual([
       { kind: "option", index: 0 },
       { kind: "option", index: 1 },
+      { kind: "chat" },
+      { kind: "next" },
+    ]);
+  });
+
+  it("orders other before chat and Next for multi-select", () => {
+    expect(rowLayout(multiWithOther)).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+      { kind: "other" },
       { kind: "chat" },
       { kind: "next" },
     ]);
@@ -501,6 +525,54 @@ describe("reduce", () => {
     expect(next.activeTab).toBe(1); // advanced to next unanswered
   });
 
+  it("replaces checked options with a custom answer", () => {
+    const state = initState([multiWithOther]);
+    state.multiChecked.set(multiWithOther.id, new Set(["auth"]));
+    const next = reduce(
+      state,
+      { type: "submitTyping", questionId: multiWithOther.id, value: "Custom" },
+      [multiWithOther],
+    );
+    expect(next.multiChecked.get(multiWithOther.id)).toEqual(new Set());
+    expect(next.answers.get(multiWithOther.id)).toEqual({ kind: "custom", value: "Custom" });
+  });
+
+  it("replaces a custom answer with an option and clears cached text", () => {
+    const state = initState([multiWithOther]);
+    state.multiChecked.set(multiWithOther.id, new Set());
+    state.answers.set(multiWithOther.id, { kind: "custom", value: "Custom" });
+    state.customText.set(multiWithOther.id, "Custom");
+    const next = reduce(
+      state,
+      { type: "toggleCheckbox", questionId: multiWithOther.id, value: "auth" },
+      [multiWithOther],
+    );
+    expect(next.customText.has(multiWithOther.id)).toBe(false);
+    expect(next.answers.get(multiWithOther.id)).toEqual({
+      kind: "options",
+      selected: [{ value: "auth", label: "Auth" }],
+    });
+  });
+
+  it("materializes a recommendation when Next confirms multi-select", () => {
+    const next = reduce(
+      initState([multiWithOther]),
+      { type: "confirmMulti", questionId: multiWithOther.id },
+      [multiWithOther],
+    );
+    expect(next.answers.get(multiWithOther.id)).toEqual({
+      kind: "options",
+      selected: [{ value: "auth", label: "Auth" }],
+    });
+  });
+
+  it("commits an explicit empty multi-select confirmation", () => {
+    const q = { ...multiWithOther, recommendation: null };
+    const next = reduce(initState([q]), { type: "confirmMulti", questionId: q.id }, [q]);
+    expect(next.answers.get(q.id)).toEqual({ kind: "options", selected: [] });
+    expect(next.activeTab).toBe(1);
+  });
+
   it("submitTyping with empty string does not record answer", () => {
     const state = initState(questions);
     state.inputMode = "typing";
@@ -637,6 +709,21 @@ describe("selectChat action", () => {
     expect(next.multiChecked.get("q2")?.size).toBe(0);
   });
 
+  it("clears cached custom text when chat replaces a multi-select custom answer", () => {
+    const state = initState([multiWithOther]);
+    state.answers.set(multiWithOther.id, { kind: "custom", value: "Custom" });
+    state.customText.set(multiWithOther.id, "Custom");
+
+    const next = reduce(
+      state,
+      { type: "selectChat", questionId: multiWithOther.id },
+      [multiWithOther],
+    );
+
+    expect(next.answers.get(multiWithOther.id)).toEqual({ kind: "chat" });
+    expect(next.customText.has(multiWithOther.id)).toBe(false);
+  });
+
   it("advances to review tab when all questions answered via chat", () => {
     const state = initState(questionsWithChat);
     state.answers.set("q2", { kind: "options", selected: [{ value: "x", label: "X" }] });
@@ -653,7 +740,7 @@ describe("confirmMulti action", () => {
   it("advances to next unanswered tab without changing the answer", () => {
     const state = initState(questionsWithChat);
     state.activeTab = 1;
-    // Answer already synced via prior toggleCheckbox
+    state.multiChecked.get("q2")?.add("x");
     state.answers.set("q2", { kind: "options", selected: [{ value: "x", label: "X" }] });
 
     const next = reduce(
@@ -676,6 +763,7 @@ describe("confirmMulti action", () => {
     const state = initState(questionsWithChat);
     state.activeTab = 1;
     state.answers.set("q1", { kind: "chat" });
+    state.multiChecked.get("q2")?.add("x");
     state.answers.set("q2", { kind: "options", selected: [{ value: "x", label: "X" }] });
 
     const next = reduce(

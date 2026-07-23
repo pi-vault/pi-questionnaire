@@ -5,6 +5,8 @@ import type {
   QuestionnaireResult,
 } from "./types.ts";
 
+const NO_INPUT_PLACEHOLDER = "(no input)";
+
 function optionIndex(question: NormalizedQuestion, value: string): number {
   return question.options.findIndex((o) => o.value === value) + 1;
 }
@@ -24,7 +26,7 @@ export function formatModelLine(
         const idx = optionIndex(question, s.value);
         return `${idx}. ${s.label}`;
       });
-      return `${question.header}: user selected: ${parts.join(", ")}`;
+      return `${question.header}: user selected: ${parts.join(", ") || NO_INPUT_PLACEHOLDER}`;
     }
     case "custom":
       return `${question.header}: user wrote: "${sel.value}"`;
@@ -74,7 +76,7 @@ export function formatAnswerForRender(
           const idx = optionIndex(question, s.value);
           return `${idx}. ${s.label}`;
         })
-        .join(", ");
+        .join(", ") || NO_INPUT_PLACEHOLDER;
     case "custom":
       return `(wrote) "${selection.value}"`;
     case "chat":

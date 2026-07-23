@@ -23,13 +23,9 @@ export function rowLayout(question: NormalizedQuestion): RowSlot[] {
     index,
   }));
 
-  if (!question.multiSelect) {
-    if (question.allowOther) slots.push({ kind: "other" });
-    if (question.allowChat) slots.push({ kind: "chat" });
-  } else {
-    if (question.allowChat) slots.push({ kind: "chat" });
-    slots.push({ kind: "next" });
-  }
+  if (question.allowOther) slots.push({ kind: "other" });
+  if (question.allowChat) slots.push({ kind: "chat" });
+  if (question.multiSelect) slots.push({ kind: "next" });
 
   return slots;
 }
@@ -162,6 +158,19 @@ function cloneState(state: QuestionnaireState): QuestionnaireState {
   };
 }
 
+function selectedMultiOptions(
+  state: QuestionnaireState,
+  questionId: string,
+  questions: NormalizedQuestion[],
+) {
+  const question = questions.find((candidate) => candidate.id === questionId);
+  if (!question?.multiSelect) return undefined;
+  const checked = state.multiChecked.get(questionId) ?? new Set<string>();
+  return question.options
+    .filter((option) => checked.has(option.value))
+    .map((option) => ({ value: option.value, label: option.label }));
+}
+
 export function reduce(
   state: QuestionnaireState,
   action: Action,
@@ -219,18 +228,11 @@ export function reduce(
         checked.add(action.value);
       }
       next.multiChecked.set(action.questionId, checked);
-      // Sync answer
-      const q = questions.find((q) => q.id === action.questionId);
-      if (q?.multiSelect) {
-        const selected = q.options
-          .filter((o) => checked.has(o.value))
-          .map((o) => ({ value: o.value, label: o.label }));
-        if (selected.length > 0) {
-          next.answers.set(action.questionId, { kind: "options", selected });
-        } else {
-          next.answers.delete(action.questionId);
-        }
-      }
+      next.customText.delete(action.questionId);
+      const selected = selectedMultiOptions(next, action.questionId, questions);
+      if (selected === undefined) return next;
+      if (selected.length === 0) next.answers.delete(action.questionId);
+      else next.answers.set(action.questionId, { kind: "options", selected });
       return next;
     }
     case "resetCursors": {
@@ -246,6 +248,7 @@ export function reduce(
     case "submitTyping": {
       const trimmed = action.value.trim();
       if (trimmed) {
+        next.multiChecked.get(action.questionId)?.clear();
         next.customText.set(action.questionId, trimmed);
         next.answers.set(action.questionId, {
           kind: "custom",
@@ -268,6 +271,7 @@ export function reduce(
     case "selectChat": {
       // Chat replaces any existing selection; for multi-choice, clear checked
       next.answers.set(action.questionId, { kind: "chat" });
+      next.customText.delete(action.questionId);
       const checked = next.multiChecked.get(action.questionId);
       if (checked) checked.clear();
       // Chat counts as answered — advance to next unanswered tab
@@ -278,7 +282,11 @@ export function reduce(
       return next;
     }
     case "confirmMulti": {
-      // Answer already synced via toggleCheckbox. Just advance.
+      const selected = selectedMultiOptions(next, action.questionId, questions);
+      if (selected !== undefined) {
+        next.customText.delete(action.questionId);
+        next.answers.set(action.questionId, { kind: "options", selected });
+      }
       const nextTab = advanceToNextTab(next, questions);
       next.activeTab = nextTab;
       next.optionCursor = 0;

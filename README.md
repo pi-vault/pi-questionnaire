@@ -79,7 +79,7 @@ Optional fields:
 
 - `multiSelect: true` — allow more than one choice
 - `recommendation` — mark the suggested option
-- `allowOther` — let the user type a custom answer
+- `allowOther` — append `Type something.` to single- and multi-select questions; a multi-select custom answer replaces checked options
 - `allowChat` — let the user say they want to discuss it instead
 
 If an option omits `value`, the label is used as the value.

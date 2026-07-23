@@ -2,6 +2,12 @@
 
 All notable changes to `@pi-vault/pi-questionnaire` are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `Type something.` custom-answer handling for multi-select questions, with custom answers replacing checked options.
+
 ## 0.2.0 - 2026-07-08
 
 ### Changed
