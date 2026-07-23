@@ -271,6 +271,7 @@ export function reduce(
     case "selectChat": {
       // Chat replaces any existing selection; for multi-choice, clear checked
       next.answers.set(action.questionId, { kind: "chat" });
+      next.customText.delete(action.questionId);
       const checked = next.multiChecked.get(action.questionId);
       if (checked) checked.clear();
       // Chat counts as answered — advance to next unanswered tab

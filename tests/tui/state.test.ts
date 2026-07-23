@@ -709,6 +709,21 @@ describe("selectChat action", () => {
     expect(next.multiChecked.get("q2")?.size).toBe(0);
   });
 
+  it("clears cached custom text when chat replaces a multi-select custom answer", () => {
+    const state = initState([multiWithOther]);
+    state.answers.set(multiWithOther.id, { kind: "custom", value: "Custom" });
+    state.customText.set(multiWithOther.id, "Custom");
+
+    const next = reduce(
+      state,
+      { type: "selectChat", questionId: multiWithOther.id },
+      [multiWithOther],
+    );
+
+    expect(next.answers.get(multiWithOther.id)).toEqual({ kind: "chat" });
+    expect(next.customText.has(multiWithOther.id)).toBe(false);
+  });
+
   it("advances to review tab when all questions answered via chat", () => {
     const state = initState(questionsWithChat);
     state.answers.set("q2", { kind: "options", selected: [{ value: "x", label: "X" }] });
