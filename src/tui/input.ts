@@ -193,6 +193,12 @@ export function interpret(data: string, ctx: InputContext): Effect[] {
         value: opt.value,
       })];
     }
+    if (target.kind === "other") {
+      return [
+        dispatch({ type: "enterTyping", questionId: q.id }),
+        { type: "set-editor-text", text: state.customText.get(q.id) ?? "" },
+      ];
+    }
     if (target.kind === "chat") {
       return [dispatch({ type: "selectChat", questionId: q.id })];
     }

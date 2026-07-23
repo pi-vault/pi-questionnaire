@@ -99,6 +99,20 @@ const multiWithChat: NormalizedQuestion = {
   allowChat: true,
 };
 
+const multiWithOther: NormalizedQuestion = {
+  multiSelect: true,
+  id: "features-other",
+  header: "Features",
+  prompt: "Pick features",
+  options: [
+    { value: "auth", label: "Auth" },
+    { value: "log", label: "Logging" },
+  ],
+  recommendation: "auth",
+  allowOther: true,
+  allowChat: true,
+};
+
 // Questions used for selectChat / confirmMulti reducer tests
 const questionsWithChat: NormalizedQuestion[] = [
   {
@@ -180,6 +194,16 @@ describe("rowLayout", () => {
     expect(slots).toEqual([
       { kind: "option", index: 0 },
       { kind: "option", index: 1 },
+      { kind: "chat" },
+      { kind: "next" },
+    ]);
+  });
+
+  it("orders other before chat and Next for multi-select", () => {
+    expect(rowLayout(multiWithOther)).toEqual([
+      { kind: "option", index: 0 },
+      { kind: "option", index: 1 },
+      { kind: "other" },
       { kind: "chat" },
       { kind: "next" },
     ]);

@@ -200,6 +200,13 @@ describe("renderQuestion — multi-select", () => {
     const text = lines.join("\n");
     expect(text).toContain("\u2500\u2500\u2500 Next");
   });
+
+  it("renders the multi-select custom row before Next", () => {
+    const q = { ...question, allowOther: true };
+    const text = renderQuestion(input(q, { cursor: q.options.length }), noopTheme, 80).join("\n");
+    expect(text).toContain("3. Type something.");
+    expect(text.indexOf("Type something.")).toBeLessThan(text.indexOf("Next"));
+  });
 });
 
 describe("renderQuestion — chat sentinel", () => {

@@ -23,13 +23,9 @@ export function rowLayout(question: NormalizedQuestion): RowSlot[] {
     index,
   }));
 
-  if (!question.multiSelect) {
-    if (question.allowOther) slots.push({ kind: "other" });
-    if (question.allowChat) slots.push({ kind: "chat" });
-  } else {
-    if (question.allowChat) slots.push({ kind: "chat" });
-    slots.push({ kind: "next" });
-  }
+  if (question.allowOther) slots.push({ kind: "other" });
+  if (question.allowChat) slots.push({ kind: "chat" });
+  if (question.multiSelect) slots.push({ kind: "next" });
 
   return slots;
 }

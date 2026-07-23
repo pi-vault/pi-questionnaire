@@ -224,6 +224,15 @@ describe("interpret", () => {
     }]);
   });
 
+  it("opens custom input from a focused multi-select other row", () => {
+    const q = { ...questions[1], allowOther: true };
+    const state = { ...initState([q]), optionCursor: q.options.length };
+    expect(interpret("\r", { state, questions: [q], notesEditorText: "" })).toEqual([
+      { type: "dispatch", action: { type: "enterTyping", questionId: q.id } },
+      { type: "set-editor-text", text: "" },
+    ]);
+  });
+
   it("Right arrow returns switchTab to next", () => {
     const effects = interpret("\x1b[C", ctx(questions));
     expect(dispatched(effects)).toEqual([{ type: "switchTab", tab: 1 }]);
